@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+{% block title %}Manage Users - Barangay System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-12 max-w-5xl">
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-display font-bold text-gray-800">Manage Users</h1>
+        <a href="{% url 'captain_dashboard' %}" class="text-gray-500 hover:text-gray-700">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Dashboard
+        </a>
+    </div>
+    
+    <!-- Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div class="bg-white rounded-xl shadow-md p-4 text-center">
+            <div class="text-2xl font-bold text-gray-800">{{ total }}</div>
+            <div class="text-gray-500">Total Users</div>
+        </div>
+        <div class="bg-white rounded-xl shadow-md p-4 text-center">
+            <div class="text-2xl font-bold text-green-600">{{ residents }}</div>
+            <div class="text-gray-500">Residents</div>
+        </div>
+        <div class="bg-white rounded-xl shadow-md p-4 text-center">
+            <div class="text-2xl font-bold text-blue-600">{{ admins }}</div>
+            <div class="text-gray-500">Administrators</div>
+        </div>
+        <div class="bg-white rounded-xl shadow-md p-4 text-center">
+            <div class="text-2xl font-bold text-purple-600">{{ captains }}</div>
+            <div class="text-gray-500">Captains</div>
+        </div>
+    </div>
+    
+    <!-- Users Table -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Name</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Email</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Role</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for user in users %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3">{{ user.first_name }} {{ user.last_name }}</td>
+                        <td class="px-4 py-3">{{ user.email }}</td>
+                        <td class="px-4 py-3">
+                            <form method="POST" class="inline-flex gap-1">
+                                {% csrf_token %}
+                                <input type="hidden" name="user_id" value="{{ user.id }}">
+                                <input type="hidden" name="action" value="change_role">
+                                <select name="role" class="text-sm border rounded px-2 py-1">
+                                    <option value="resident" {% if user.role == 'resident' %}selected{% endif %}>Resident</option>
+                                    <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
+                                    <option value="captain" {% if user.role == 'captain' %}selected{% endif %}>Captain</option>
+                                </select>
+                                <button type="submit" class="text-blue-600 hover:text-blue-800">
+                                    <i class="fas fa-save"></i>
+                                </button>
+                            </form>
+                        </td>
+                        <td class="px-4 py-3">
+                            {% if user != request.user %}
+                            <form method="POST" class="inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="user_id" value="{{ user.id }}">
+                                <input type="hidden" name="action" value="delete">
+                                <button type="submit" class="text-red-600 hover:text-red-800" onclick="return confirm('Delete this user?')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

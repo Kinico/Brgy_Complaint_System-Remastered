@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block title %}Audit Log - Barangay System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-12 max-w-6xl">
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-display font-bold text-gray-800">Audit Log</h1>
+        <a href="{% url 'captain_dashboard' %}" class="text-gray-500 hover:text-gray-700">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Dashboard
+        </a>
+    </div>
+    
+    <!-- Filters -->
+    <div class="bg-white rounded-xl shadow-md p-4 mb-6">
+        <form method="GET" class="flex gap-4">
+            <select name="action" class="px-4 py-2 border rounded-lg">
+                <option value="">All Actions</option>
+                {% for value, label in actions %}
+                <option value="{{ value }}" {% if request.GET.action == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600">
+                <i class="fas fa-filter mr-2"></i>Filter
+            </button>
+        </form>
+    </div>
+    
+    <!-- Log Table -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">User</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Action</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Details</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">IP Address</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Date & Time</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for log in logs %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3">{{ log.user.first_name }} {{ log.user.last_name }}</td>
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-1 rounded-full text-xs
+                                {% if log.action == 'login' %}bg-green-100 text-green-700
+                                {% elif log.action == 'logout' %}bg-gray-100 text-gray-700
+                                {% elif log.action == 'create_complaint' %}bg-blue-100 text-blue-700
+                                {% elif log.action == 'update_status' %}bg-yellow-100 text-yellow-700
+                                {% elif log.action == 'delete_complaint' %}bg-red-100 text-red-700
+                                {% else %}bg-purple-100 text-purple-700{% endif %}">
+                                {{ log.get_action_display }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-sm">{{ log.details|truncatechars:50 }}</td>
+                        <td class="px-4 py-3 text-sm">{{ log.ip_address|default:"-" }}</td>
+                        <td class="px-4 py-3 text-sm">{{ log.created_at|date:"M d, Y H:i:s" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-4 py-8 text-center text-gray-500">No audit logs found</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

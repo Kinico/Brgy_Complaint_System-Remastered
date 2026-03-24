@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+
+{% block title %}Captain Dashboard - Barangay System{% endblock %}
+
+{% block content %}
+<div class="bg-gray-100 min-h-screen py-8">
+    <div class="container mx-auto px-4">
+        <div class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-3xl font-display font-bold text-gray-800">Captain Dashboard</h1>
+                <p class="text-gray-500">Welcome, {{ user.first_name|default:user.username }}!</p>
+            </div>
+            <div class="flex gap-3">
+                <a href="{% url 'admin_dashboard' %}" class="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600">
+                    <i class="fas fa-chart-line mr-2"></i>View Analytics
+                </a>
+                <a href="{% url 'manage_users' %}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                    <i class="fas fa-users mr-2"></i>Manage Users
+                </a>
+                <a href="{% url 'audit_log' %}" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700">
+                    <i class="fas fa-history mr-2"></i>Audit Log
+                </a>
+            </div>
+        </div>
+        
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500">Total Users</p>
+                        <p class="text-3xl font-bold text-gray-800">{{ total_users }}</p>
+                    </div>
+                    <i class="fas fa-users text-4xl text-blue-400"></i>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500">Total Complaints</p>
+                        <p class="text-3xl font-bold text-gray-800">{{ total_complaints }}</p>
+                    </div>
+                    <i class="fas fa-file-alt text-4xl text-orange-400"></i>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500">Resolved</p>
+                        <p class="text-3xl font-bold text-green-600">{{ resolved_complaints }}</p>
+                    </div>
+                    <i class="fas fa-check-circle text-4xl text-green-400"></i>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500">Admins</p>
+                        <p class="text-3xl font-bold text-purple-600">{{ admin_count }}</p>
+                    </div>
+                    <i class="fas fa-user-shield text-4xl text-purple-400"></i>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <a href="{% url 'manage_users' %}" class="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-user-plus text-blue-600 text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-lg">Add New Admin</h3>
+                        <p class="text-gray-500 text-sm">Create administrator accounts</p>
+                    </div>
+                </div>
+            </a>
+            <a href="{% url 'audit_log' %}" class="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-history text-purple-600 text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-lg">View Audit Log</h3>
+                        <p class="text-gray-500 text-sm">Monitor all system activities</p>
+                    </div>
+                </div>
+            </a>
+            <a href="{% url 'admin_dashboard' %}" class="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-chart-bar text-orange-600 text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-lg">Analytics</h3>
+                        <p class="text-gray-500 text-sm">View complaint statistics</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Barangay 11 Complaint System{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="relative h-[70vh] min-h-[500px] flex items-center justify-center overflow-hidden">
+    <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?w=1600');">
+        <div class="absolute inset-0 bg-gradient-to-r from-orange-900/90 to-orange-600/80"></div>
+    </div>
+    <div class="relative z-10 text-center text-white px-4 max-w-3xl mx-auto">
+        <h1 class="text-5xl md:text-6xl font-display font-bold mb-4">Barangay 10</h1>
+        <p class="text-xl md:text-2xl mb-8 font-light">Serbisyong tapat para sa bawat residente. File and track your complaints with ease.</p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="{% url 'submit_complaint' %}" class="px-8 py-4 bg-white text-orange-600 rounded-xl font-semibold hover:bg-gray-100 transition">
+                <i class="fas fa-file-alt mr-2"></i>File a Complaint
+            </a>
+            <a href="{% url 'track_complaint' %}" class="px-8 py-4 border-2 border-white text-white rounded-xl font-semibold hover:bg-white/10 transition">
+                <i class="fas fa-search mr-2"></i>Track My Complaint
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- Statistics -->
+<section class="py-12 bg-white">
+    <div class="container mx-auto px-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div class="text-center p-6">
+                <i class="fas fa-file-alt text-4xl text-orange-500 mb-3"></i>
+                <div class="text-3xl font-bold text-gray-800">{{ total_complaints }}</div>
+                <div class="text-gray-500">Total Complaints</div>
+            </div>
+            <div class="text-center p-6">
+                <i class="fas fa-check-circle text-4xl text-green-500 mb-3"></i>
+                <div class="text-3xl font-bold text-gray-800">{{ resolved_complaints }}</div>
+                <div class="text-gray-500">Resolved Complaints</div>
+            </div>
+            <div class="text-center p-6">
+                <i class="fas fa-clock text-4xl text-yellow-500 mb-3"></i>
+                <div class="text-3xl font-bold text-gray-800">{{ categories.count }}</div>
+                <div class="text-gray-500">Categories</div>
+            </div>
+            <div class="text-center p-6">
+                <i class="fas fa-users text-4xl text-blue-500 mb-3"></i>
+                <div class="text-3xl font-bold text-gray-800">24/7</div>
+                <div class="text-gray-500">Support</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features -->
+<section class="py-16 bg-gray-50">
+    <div class="container mx-auto px-4">
+        <h2 class="text-3xl font-display font-bold text-center mb-12">How We <span class="text-orange-500">Serve You</span></h2>
+        <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div class="bg-white p-6 rounded-xl shadow-lg card-hover text-center">
+                <div class="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-file-alt text-orange-500 text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-bold mb-2">File a Complaint</h3>
+                <p class="text-gray-500">Submit your concerns easily with our online complaint form.</p>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-lg card-hover text-center">
+                <div class="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-shield-alt text-orange-500 text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-bold mb-2">Spam Protection</h3>
+                <p class="text-gray-500">AI-powered spam detection ensures only legitimate complaints are processed.</p>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-lg card-hover text-center">
+                <div class="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-search text-orange-500 text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-bold mb-2">Track Status</h3>
+                <p class="text-gray-500">Monitor your complaint's progress from submission to resolution.</p>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-lg card-hover text-center">
+                <div class="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-chart-line text-orange-500 text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-bold mb-2">Transparency</h3>
+                <p class="text-gray-500">View community statistics and complaint resolution metrics.</p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
