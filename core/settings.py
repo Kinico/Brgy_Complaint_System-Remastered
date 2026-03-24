@@ -69,18 +69,11 @@ ON_EC2 = os.path.exists('/home/ubuntu')
 if ON_EC2:
     # Production on AWS EC2 - Use RDS PostgreSQL
     DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': 'postgres',  # This is your database name from RDS
-            'USER': 'Barangay10system',  # This is your username from RDS
-            'PASSWORD': 'Barangay11SystemPassword',  # Your RDS password
-            'HOST': 'database-1.cjue82oa2z6t.ap-southeast-2.rds.amazonaws.com',
-            'PORT': '5432',
-            'OPTIONS': {
-                'sslmode': 'require',  # RDS requires SSL
-            },
-        }
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
+}
 else:
     # Local development - Use SQLite
     DATABASES = {
