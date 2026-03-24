@@ -4,7 +4,6 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-# Use environment variable or set directly for EC2
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-your-secret-key-here-change-this')
 
 # SECURITY WARNING: don't run with debug turned on in production!
@@ -14,8 +13,8 @@ DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
-    '3.27.106.72',           # Your EC2 public IP
-    'ec2-3-27-106-72.compute-1.amazonaws.com',  # Your EC2 public DNS
+    '3.27.106.72',
+    'ec2-3-27-106-72.ap-southeast-2.compute.amazonaws.com',  # Use your correct DNS
 ]
 
 # Application definition
@@ -26,7 +25,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'whitenoise.runserver_nostatic',  # Add this for static files
+    'whitenoise.runserver_nostatic',
     'accounts',
     'complaints',
     'ml_spam',
@@ -34,7 +33,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # Add this
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -63,17 +62,33 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
-# Database - PostgreSQL for EC2
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'barangay_db',
-        'USER': 'barangay_user',
-        'PASSWORD': 'barangay123',
-        'HOST': 'localhost',
-        'PORT': '5432',
+# ========== DATABASE CONFIGURATION ==========
+# Detect if we're on EC2
+ON_EC2 = os.path.exists('/home/ubuntu')
+
+if ON_EC2:
+    # Production on AWS EC2 - Use RDS PostgreSQL
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'postgres',  # This is your database name from RDS
+            'USER': 'Barangay10system',  # This is your username from RDS
+            'PASSWORD': 'Barangay11SystemPassword',  # Your RDS password
+            'HOST': 'database-1.cjue8z0a2z6t.ap-southeast-2.rds.amazonaws.com',
+            'PORT': '5432',
+            'OPTIONS': {
+                'sslmode': 'require',  # RDS requires SSL
+            },
+        }
     }
-}
+else:
+    # Local development - Use SQLite
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -112,7 +127,7 @@ LOGOUT_REDIRECT_URL = 'home'
 
 # Security settings for production
 if not DEBUG:
-    SECURE_SSL_REDIRECT = False  # Set to True if using HTTPS
+    SECURE_SSL_REDIRECT = False
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
     SECURE_BROWSER_XSS_FILTER = True
