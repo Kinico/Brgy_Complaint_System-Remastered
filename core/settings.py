@@ -1,19 +1,22 @@
-"""
-Django settings for core project.
-"""
 import os
 from pathlib import Path
 
-# Build paths
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-your-secret-key-here'
+# Use environment variable or set directly for EC2
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-your-secret-key-here-change-this')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = ['*']
+# IMPORTANT: Add your EC2 public IP and domain
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    '3.27.106.72',           # Your EC2 public IP
+    'ec2-3-27-106-72.compute-1.amazonaws.com',  # Your EC2 public DNS
+]
 
 # Application definition
 INSTALLED_APPS = [
@@ -23,7 +26,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    # Custom apps
+    'whitenoise.runserver_nostatic',  # Add this for static files
     'accounts',
     'complaints',
     'ml_spam',
@@ -31,6 +34,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Add this
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -59,11 +63,15 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
-# Database
+# Database - PostgreSQL for EC2
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'barangay_db',
+        'USER': 'barangay_user',
+        'PASSWORD': 'barangay123',
+        'HOST': 'localhost',
+        'PORT': '5432',
     }
 }
 
@@ -85,8 +93,9 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# Media files
+# Media files (Uploaded images)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
@@ -100,3 +109,11 @@ AUTH_USER_MODEL = 'accounts.User'
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'home'
+
+# Security settings for production
+if not DEBUG:
+    SECURE_SSL_REDIRECT = False  # Set to True if using HTTPS
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
