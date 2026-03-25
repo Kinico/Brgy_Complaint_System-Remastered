@@ -13,7 +13,9 @@ ALLOWED_HOSTS = [
     '3.27.106.72',
     '3.27.13.63',
     '52.64.31.47' ,
+    '52.65.199.45' ,
     'ec2-3-27-106-72.ap-southeast-2.compute.amazonaws.com',
+    'ec2-52-65-199-45.ap-southeast-2.compute.amazonaws.com'
 ]
 
 INSTALLED_APPS = [
