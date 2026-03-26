@@ -12,8 +12,8 @@ ALLOWED_HOSTS = [
     '127.0.0.1',
     '3.27.106.72',
     '3.27.13.63',
-    '52.64.31.47' ,
-    '52.65.199.45' ,
+    '52.64.31.47',
+    '52.65.199.45',
     'ec2-3-27-106-72.ap-southeast-2.compute.amazonaws.com',
     'ec2-52-65-199-45.ap-southeast-2.compute.amazonaws.com'
 ]
@@ -62,7 +62,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
-# Database - SQLite
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -92,6 +91,22 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'accounts.User'
+
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'home'
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.resend.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'resend'
+EMAIL_HOST_PASSWORD = 're_fYH9mh5s_Kj77UFpVo2pBMVXcRv8XCvTK'
+DEFAULT_FROM_EMAIL = 'Barangay 11 <noreply@barangay.complaints.com>'
+
+if not DEBUG:
+    SECURE_SSL_REDIRECT = False
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True

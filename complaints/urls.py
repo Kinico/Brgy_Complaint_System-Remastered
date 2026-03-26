@@ -27,4 +27,11 @@ urlpatterns = [
     
     # Captain URLs
     path('captain-dashboard/', views.captain_dashboard, name='captain_dashboard'),
+
+    #Anonymous complaint URLs
+    path('anonymous/', views.anonymous_complaint, name='anonymous_complaint'),
+    path('anonymous/success/<str:tracking_code>/', views.anonymous_success, name='anonymous_success'),
+    path('anonymous/track/', views.track_anonymous, name='track_anonymous'),
+    path('anonymous/track/<str:tracking_code>/', views.anonymous_track_result, name='anonymous_track_result'),
+
 ]

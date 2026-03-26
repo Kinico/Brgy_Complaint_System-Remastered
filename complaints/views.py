@@ -7,8 +7,8 @@ from datetime import datetime, timedelta
 from django.core.paginator import Paginator
 from django.http import HttpResponse
 import json
-from .models import Complaint, Category, ComplaintStatusHistory
-from .forms import ComplaintForm
+from .models import Complaint, Category, ComplaintStatusHistory, AnonymousComplaint
+from .forms import ComplaintForm, AnonymousComplaintForm
 from accounts.models import AuditLog
 from accounts.views import log_audit, get_client_ip
 from ml_spam.ml_models import spam_ml
@@ -68,15 +68,11 @@ def complaint_success(request, tracking_code):
 
 
 def track_complaint(request):
-    """Track complaint by tracking code (works for both POST and GET)"""
-    
-    # Handle GET request with ?code= parameter
     if request.method == 'GET':
         code = request.GET.get('code', '').upper().strip()
         if code:
             try:
                 complaint = Complaint.objects.get(tracking_code=code)
-                # Check if user has permission to view
                 if request.user.is_authenticated and (complaint.submitted_by == request.user or request.user.is_admin()):
                     return render(request, 'complaints/track_result.html', {'complaint': complaint})
                 elif request.user.is_authenticated:
@@ -86,7 +82,6 @@ def track_complaint(request):
             except Complaint.DoesNotExist:
                 messages.error(request, 'No complaint found with that code.')
     
-    # Handle POST request
     if request.method == 'POST':
         code = request.POST.get('tracking_code', '').upper().strip()
         if code:
@@ -113,16 +108,22 @@ def my_complaints(request):
 @login_required
 @user_passes_test(lambda u: u.is_admin())
 def admin_dashboard(request):
+    # Regular complaints
     complaints = Complaint.objects.all().order_by('-created_at')
+    # Anonymous complaints
+    anonymous_complaints = AnonymousComplaint.objects.all().order_by('-created_at')
     
     # Filters
     date_range = request.GET.get('date_range', 'all')
     if date_range == 'today':
         complaints = complaints.filter(created_at__date=timezone.now().date())
+        anonymous_complaints = anonymous_complaints.filter(created_at__date=timezone.now().date())
     elif date_range == 'week':
         complaints = complaints.filter(created_at__gte=timezone.now() - timedelta(days=7))
+        anonymous_complaints = anonymous_complaints.filter(created_at__gte=timezone.now() - timedelta(days=7))
     elif date_range == 'month':
         complaints = complaints.filter(created_at__gte=timezone.now() - timedelta(days=30))
+        anonymous_complaints = anonymous_complaints.filter(created_at__gte=timezone.now() - timedelta(days=30))
     
     search = request.GET.get('search', '')
     if search:
@@ -133,9 +134,15 @@ def admin_dashboard(request):
             Q(submitted_by__first_name__icontains=search) |
             Q(submitted_by__last_name__icontains=search)
         )
+        anonymous_complaints = anonymous_complaints.filter(
+            Q(tracking_code__icontains=search) |
+            Q(description__icontains=search) |
+            Q(location__icontains=search)
+        )
     
     # Stats
     total = complaints.count()
+    total_anonymous = anonymous_complaints.count()
     stats = {
         'pending': complaints.filter(status='pending').count(),
         'under_review': complaints.filter(status='under_review').count(),
@@ -143,6 +150,9 @@ def admin_dashboard(request):
         'resolved': complaints.filter(status='resolved').count(),
         'rejected': complaints.filter(status='rejected').count(),
         'spam': complaints.filter(is_spam=True).count(),
+        'anonymous_pending': anonymous_complaints.filter(status='pending').count(),
+        'anonymous_resolved': anonymous_complaints.filter(status='resolved').count(),
+        'anonymous_spam': anonymous_complaints.filter(is_spam=True).count(),
     }
     
     # Category data for chart
@@ -173,8 +183,10 @@ def admin_dashboard(request):
     
     context = {
         'complaints': complaints,
+        'anonymous_complaints': anonymous_complaints,
         'stats': stats,
         'total': total,
+        'total_anonymous': total_anonymous,
         'category_data': json.dumps(category_data),
         'monthly_data': json.dumps(monthly_data),
         'search': search,
@@ -248,11 +260,17 @@ def manage_categories(request):
 @user_passes_test(lambda u: u.is_admin())
 def review_spam(request):
     spam_complaints = Complaint.objects.filter(is_spam=True, reviewed_by_admin=False).order_by('-spam_confidence')
+    spam_anonymous = AnonymousComplaint.objects.filter(is_spam=True, reviewed_by_admin=False).order_by('-spam_confidence')
     
     if request.method == 'POST':
+        complaint_type = request.POST.get('type', 'regular')
         complaint_id = request.POST.get('complaint_id')
         action = request.POST.get('action')
-        complaint = get_object_or_404(Complaint, id=complaint_id)
+        
+        if complaint_type == 'regular':
+            complaint = get_object_or_404(Complaint, id=complaint_id)
+        else:
+            complaint = get_object_or_404(AnonymousComplaint, id=complaint_id)
         
         if action == 'approve':
             complaint.is_spam = False
@@ -271,13 +289,35 @@ def review_spam(request):
         
         return redirect('review_spam')
     
-    return render(request, 'complaints/review_spam.html', {'complaints': spam_complaints})
+    return render(request, 'complaints/review_spam.html', {'complaints': spam_complaints, 'anonymous': spam_anonymous})
 
 
 @login_required
 @user_passes_test(lambda u: u.is_captain())
 def captain_dashboard(request):
-    return render(request, 'complaints/captain_dashboard.html')
+    from accounts.models import User
+    
+    # Get users by role
+    residents = User.objects.filter(role='resident')
+    admins = User.objects.filter(role='admin')
+    captains = User.objects.filter(role='captain')
+    
+    # Get complaint stats
+    total_complaints = Complaint.objects.filter(is_spam=False).count()
+    resolved_complaints = Complaint.objects.filter(status='resolved', is_spam=False).count()
+    
+    context = {
+        'residents': residents,
+        'admins': admins,
+        'captains': captains,
+        'total_residents': residents.count(),
+        'total_admins': admins.count(),
+        'total_captains': captains.count(),
+        'total_users': User.objects.count(),
+        'total_complaints': total_complaints,
+        'resolved_complaints': resolved_complaints,
+    }
+    return render(request, 'complaints/captain_dashboard.html', context)
 
 
 # ==================== RESOLVED & PENDING VIEWS ====================
@@ -285,13 +325,11 @@ def captain_dashboard(request):
 @login_required
 @user_passes_test(lambda u: u.is_admin())
 def resolved_complaints(request):
-    """View all resolved complaints with search, filters, and pagination"""
     complaints = Complaint.objects.filter(
         status='resolved',
         is_spam=False
     ).order_by('-resolved_at')
     
-    # Search
     search = request.GET.get('search', '')
     if search:
         complaints = complaints.filter(
@@ -303,7 +341,6 @@ def resolved_complaints(request):
             Q(submitted_by__email__icontains=search)
         )
     
-    # Date filter
     date_range = request.GET.get('date_range', 'all')
     today = timezone.now().date()
     if date_range == 'today':
@@ -318,11 +355,9 @@ def resolved_complaints(request):
         start_date = today - timedelta(days=365)
         complaints = complaints.filter(resolved_at__date__gte=start_date)
     
-    # Stats
     total_resolved = complaints.count()
     resolved_this_month = complaints.filter(resolved_at__month=today.month).count()
     
-    # Average resolution time
     avg_seconds = 0
     for complaint in complaints:
         if complaint.resolved_at and complaint.created_at:
@@ -337,14 +372,12 @@ def resolved_complaints(request):
         avg_hours = 0
         avg_days = 0
     
-    # Resolution rate
     total_complaints = Complaint.objects.filter(is_spam=False).count()
     if total_complaints > 0:
         resolution_rate = (total_resolved / total_complaints) * 100
     else:
         resolution_rate = 0
     
-    # Pagination
     paginator = Paginator(complaints, 20)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
@@ -365,7 +398,6 @@ def resolved_complaints(request):
 @login_required
 @user_passes_test(lambda u: u.is_admin())
 def pending_complaints(request):
-    """View all active/pending complaints with search, filters, and pagination"""
     complaints = Complaint.objects.filter(
         is_spam=False,
         reviewed_by_admin=True
@@ -373,7 +405,6 @@ def pending_complaints(request):
         status__in=['resolved', 'rejected']
     ).order_by('-created_at')
     
-    # Search
     search = request.GET.get('search', '')
     if search:
         complaints = complaints.filter(
@@ -385,12 +416,10 @@ def pending_complaints(request):
             Q(submitted_by__email__icontains=search)
         )
     
-    # Status filter
     status_filter = request.GET.get('status_filter', 'all')
     if status_filter != 'all':
         complaints = complaints.filter(status=status_filter)
     
-    # Date filter
     date_range = request.GET.get('date_range', 'all')
     today = timezone.now().date()
     if date_range == 'today':
@@ -402,13 +431,11 @@ def pending_complaints(request):
         start_date = today - timedelta(days=30)
         complaints = complaints.filter(created_at__date__gte=start_date)
     
-    # Stats
     total_active = complaints.count()
     pending_count = complaints.filter(status='pending').count()
     under_review_count = complaints.filter(status='under_review').count()
     in_progress_count = complaints.filter(status='in_progress').count()
     
-    # Pagination
     paginator = Paginator(complaints, 20)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
@@ -429,7 +456,6 @@ def pending_complaints(request):
 @login_required
 @user_passes_test(lambda u: u.is_admin())
 def flag_as_spam(request, complaint_id):
-    """Manually flag a complaint as spam"""
     complaint = get_object_or_404(Complaint, id=complaint_id)
     
     if request.method == 'POST':
@@ -439,7 +465,6 @@ def flag_as_spam(request, complaint_id):
         complaint.status = 'rejected'
         complaint.save()
         
-        # Add to status history
         ComplaintStatusHistory.objects.create(
             complaint=complaint,
             status='rejected',
@@ -457,7 +482,6 @@ def flag_as_spam(request, complaint_id):
 @login_required
 @user_passes_test(lambda u: u.is_admin())
 def mark_as_not_spam(request, complaint_id):
-    """Mark a flagged complaint as not spam (false positive)"""
     complaint = get_object_or_404(Complaint, id=complaint_id)
     
     if request.method == 'POST':
@@ -473,19 +497,64 @@ def mark_as_not_spam(request, complaint_id):
     return redirect(request.META.get('HTTP_REFERER', 'review_spam'))
 
 
+# ==================== ANONYMOUS COMPLAINT VIEWS ====================
+
+def anonymous_complaint(request):
+    if request.method == 'POST':
+        form = AnonymousComplaintForm(request.POST, request.FILES)
+        if form.is_valid():
+            complaint = form.save()
+            
+            text = f"{complaint.description} {complaint.location}"
+            is_spam, confidence = spam_ml.predict(text)
+            complaint.is_spam = is_spam
+            complaint.spam_confidence = confidence
+            complaint.save()
+            
+            if is_spam:
+                messages.warning(request, f'⚠️ Your anonymous complaint has been flagged for review. Tracking Code: {complaint.tracking_code}')
+            else:
+                messages.success(request, f'✅ Anonymous complaint submitted successfully! Tracking Code: {complaint.tracking_code}')
+            
+            return redirect('anonymous_success', tracking_code=complaint.tracking_code)
+    else:
+        form = AnonymousComplaintForm()
+    
+    return render(request, 'complaints/anonymous_complaint.html', {'form': form})
+
+
+def anonymous_success(request, tracking_code):
+    complaint = get_object_or_404(AnonymousComplaint, tracking_code=tracking_code)
+    return render(request, 'complaints/anonymous_success.html', {'complaint': complaint})
+
+
+def track_anonymous(request):
+    if request.method == 'POST':
+        tracking_code = request.POST.get('tracking_code', '').upper().strip()
+        try:
+            complaint = AnonymousComplaint.objects.get(tracking_code=tracking_code)
+            return render(request, 'complaints/anonymous_track_result.html', {'complaint': complaint})
+        except AnonymousComplaint.DoesNotExist:
+            messages.error(request, 'No complaint found with that tracking code.')
+    
+    return render(request, 'complaints/anonymous_track.html')
+
+
+def anonymous_track_result(request, tracking_code):
+    complaint = get_object_or_404(AnonymousComplaint, tracking_code=tracking_code)
+    return render(request, 'complaints/anonymous_track_result.html', {'complaint': complaint})
+
+
 # ==================== EXPORT FUNCTIONS ====================
 
 @login_required
 @user_passes_test(lambda u: u.is_admin())
 def export_complaints_excel(request):
-    """Export complaints to Excel"""
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment
     
-    # Get complaints based on filters
     complaints = Complaint.objects.all().order_by('-created_at')
     
-    # Apply filters if any
     status_filter = request.GET.get('status', '')
     if status_filter:
         complaints = complaints.filter(status=status_filter)
@@ -511,16 +580,13 @@ def export_complaints_excel(request):
             Q(submitted_by__last_name__icontains=search)
         )
     
-    # Create workbook
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Complaints"
     
-    # Headers
     headers = ['Tracking Code', 'Complainant', 'Email', 'Category', 'Description', 
                'Location', 'Status', 'Is Spam', 'Created Date', 'Resolved Date']
     
-    # Style headers
     header_font = Font(bold=True, color="FFFFFF")
     header_fill = PatternFill(start_color="4E73DF", end_color="4E73DF", fill_type="solid")
     
@@ -530,7 +596,6 @@ def export_complaints_excel(request):
         cell.fill = header_fill
         cell.alignment = Alignment(horizontal='center')
     
-    # Add data
     for row, complaint in enumerate(complaints, 2):
         ws.cell(row=row, column=1, value=complaint.tracking_code)
         ws.cell(row=row, column=2, value=f"{complaint.submitted_by.first_name} {complaint.submitted_by.last_name}")
@@ -543,7 +608,6 @@ def export_complaints_excel(request):
         ws.cell(row=row, column=9, value=complaint.created_at.strftime('%Y-%m-%d %H:%M'))
         ws.cell(row=row, column=10, value=complaint.resolved_at.strftime('%Y-%m-%d %H:%M') if complaint.resolved_at else '')
     
-    # Auto-adjust column widths
     for column in ws.columns:
         max_length = 0
         column_letter = column[0].column_letter
@@ -556,7 +620,6 @@ def export_complaints_excel(request):
         adjusted_width = min(max_length + 2, 50)
         ws.column_dimensions[column_letter].width = adjusted_width
     
-    # Create response
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     filename = f"complaints_{timezone.now().strftime('%Y%m%d_%H%M')}.xlsx"
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
@@ -568,13 +631,10 @@ def export_complaints_excel(request):
 @login_required
 @user_passes_test(lambda u: u.is_admin())
 def export_complaints_csv(request):
-    """Export complaints to CSV"""
     import csv
     
-    # Get complaints based on filters
     complaints = Complaint.objects.all().order_by('-created_at')
     
-    # Apply filters if any
     status_filter = request.GET.get('status', '')
     if status_filter:
         complaints = complaints.filter(status=status_filter)
@@ -600,18 +660,15 @@ def export_complaints_csv(request):
             Q(submitted_by__last_name__icontains=search)
         )
     
-    # Create response
     response = HttpResponse(content_type='text/csv')
     filename = f"complaints_{timezone.now().strftime('%Y%m%d_%H%M')}.csv"
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     
     writer = csv.writer(response)
     
-    # Write headers
     writer.writerow(['Tracking Code', 'Complainant', 'Email', 'Category', 'Description', 
                      'Location', 'Status', 'Is Spam', 'Created Date', 'Resolved Date'])
     
-    # Write data
     for complaint in complaints:
         writer.writerow([
             complaint.tracking_code,
@@ -632,17 +689,14 @@ def export_complaints_csv(request):
 @login_required
 @user_passes_test(lambda u: u.is_admin())
 def export_complaints_pdf(request):
-    """Export complaints to PDF"""
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import letter, landscape
     from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import inch
     
-    # Get complaints based on filters
     complaints = Complaint.objects.all().order_by('-created_at')
     
-    # Apply filters if any
     status_filter = request.GET.get('status', '')
     if status_filter:
         complaints = complaints.filter(status=status_filter)
@@ -668,12 +722,10 @@ def export_complaints_pdf(request):
             Q(submitted_by__last_name__icontains=search)
         )
     
-    # Create PDF response
     response = HttpResponse(content_type='application/pdf')
     filename = f"complaints_{timezone.now().strftime('%Y%m%d_%H%M')}.pdf"
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     
-    # Create PDF document
     doc = SimpleDocTemplate(response, pagesize=landscape(letter))
     elements = []
     
@@ -681,17 +733,14 @@ def export_complaints_pdf(request):
     title_style = styles['Heading1']
     title_style.alignment = 1
     
-    # Title
     elements.append(Paragraph("Barangay Complaint System Report", title_style))
     elements.append(Spacer(1, 0.2*inch))
     
-    # Date
     date_style = styles['Normal']
     date_style.alignment = 1
     elements.append(Paragraph(f"Generated: {timezone.now().strftime('%B %d, %Y %I:%M %p')}", date_style))
     elements.append(Spacer(1, 0.3*inch))
     
-    # Statistics
     elements.append(Paragraph("Summary Statistics", styles['Heading2']))
     elements.append(Spacer(1, 0.1*inch))
     
@@ -717,13 +766,12 @@ def export_complaints_pdf(request):
     elements.append(stats_table)
     elements.append(Spacer(1, 0.3*inch))
     
-    # Complaints Table
     elements.append(Paragraph("Complaint Details", styles['Heading2']))
     elements.append(Spacer(1, 0.1*inch))
     
     table_data = [['Tracking', 'Complainant', 'Category', 'Status', 'Date']]
     
-    for complaint in complaints[:20]:  # Limit to 20 for PDF
+    for complaint in complaints[:20]:
         table_data.append([
             complaint.tracking_code,
             f"{complaint.submitted_by.first_name} {complaint.submitted_by.last_name}",

@@ -11,7 +11,6 @@
         </a>
     </div>
     
-    <!-- Stats -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <div class="bg-white rounded-xl shadow-md p-4 text-center">
             <div class="text-2xl font-bold text-gray-800">{{ total }}</div>
@@ -31,7 +30,6 @@
         </div>
     </div>
     
-    <!-- Users Table -->
     <div class="bg-white rounded-xl shadow-md overflow-hidden">
         <div class="overflow-x-auto">
             <table class="w-full">
@@ -39,6 +37,7 @@
                     <tr>
                         <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Name</th>
                         <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Email</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Verified</th>
                         <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Role</th>
                         <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Actions</th>
                     </tr>
@@ -48,6 +47,13 @@
                     <tr class="hover:bg-gray-50">
                         <td class="px-4 py-3">{{ user.first_name }} {{ user.last_name }}</td>
                         <td class="px-4 py-3">{{ user.email }}</td>
+                        <td class="px-4 py-3">
+                            {% if user.is_verified %}
+                                <span class="text-green-600"><i class="fas fa-check-circle"></i> Verified</span>
+                            {% else %}
+                                <span class="text-red-600"><i class="fas fa-times-circle"></i> Pending</span>
+                            {% endif %}
+                        </td>
                         <td class="px-4 py-3">
                             <form method="POST" class="inline-flex gap-1">
                                 {% csrf_token %}

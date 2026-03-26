@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+
+{% block title %}File Anonymous Complaint - Barangay 11{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-12 max-w-2xl">
+    <div class="bg-white rounded-2xl shadow-xl p-8">
+        <div class="text-center mb-8">
+            <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-user-secret text-gray-500 text-2xl"></i>
+            </div>
+            <h1 class="text-3xl font-display font-bold text-gray-800">File Anonymously</h1>
+            <p class="text-gray-500 mt-2">No account needed. Your identity will remain private.</p>
+            <div class="mt-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-700">
+                <i class="fas fa-info-circle mr-2"></i>
+                You can track your complaint using the tracking code provided after submission.
+            </div>
+        </div>
+        
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 font-medium mb-2">Category</label>
+                {{ form.category }}
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 font-medium mb-2">Location</label>
+                {{ form.location }}
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 font-medium mb-2">Description</label>
+                {{ form.description }}
+                <div id="spamIndicator" class="mt-2 hidden"></div>
+            </div>
+            
+            <div class="mb-6">
+                <label class="block text-gray-700 font-medium mb-2">Upload Image (optional)</label>
+                {{ form.image }}
+                <p class="text-xs text-gray-400 mt-1">Max file size: 5MB</p>
+            </div>
+            
+            <button type="submit" class="w-full bg-gray-600 text-white py-3 rounded-lg font-semibold hover:bg-gray-700 transition">
+                <i class="fas fa-paper-plane mr-2"></i>Submit Anonymous Complaint
+            </button>
+        </form>
+        
+        <div class="text-center mt-6">
+            <a href="{% url 'track_anonymous' %}" class="text-orange-500 hover:text-orange-600 text-sm">
+                <i class="fas fa-search mr-1"></i>Track your anonymous complaint
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Live spam detection
+    const descriptionField = document.querySelector('#id_description');
+    const spamIndicator = document.getElementById('spamIndicator');
+    
+    if (descriptionField) {
+        descriptionField.addEventListener('input', function() {
+            const text = this.value;
+            if (text.length > 10) {
+                fetch('/api/check-spam/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({ text: text })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.is_spam) {
+                        spamIndicator.innerHTML = `
+                            <div class="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
+                                <i class="fas fa-exclamation-triangle mr-2"></i>
+                                ⚠️ This complaint looks like spam. It will be reviewed by an admin.
+                            </div>
+                        `;
+                        spamIndicator.classList.remove('hidden');
+                    } else {
+                        spamIndicator.innerHTML = `
+                            <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+                                <i class="fas fa-check-circle mr-2"></i>
+                                ✅ Your complaint looks legitimate.
+                            </div>
+                        `;
+                        spamIndicator.classList.remove('hidden');
+                    }
+                });
+            } else {
+                spamIndicator.classList.add('hidden');
+            }
+        });
+    }
+</script>
+{% endblock %}

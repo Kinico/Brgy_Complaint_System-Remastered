@@ -5,6 +5,7 @@
 {% block content %}
 <div class="bg-gray-100 min-h-screen py-8">
     <div class="container mx-auto px-4">
+        <!-- Header -->
         <div class="flex justify-between items-center mb-8">
             <div>
                 <h1 class="text-3xl font-display font-bold text-gray-800">Captain Dashboard</h1>
@@ -25,7 +26,7 @@
         
         <!-- Stats Cards -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div class="bg-white rounded-xl shadow-md p-6">
+            <div class="bg-white rounded-xl shadow-md p-6 stat-card">
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-gray-500">Total Users</p>
@@ -34,7 +35,7 @@
                     <i class="fas fa-users text-4xl text-blue-400"></i>
                 </div>
             </div>
-            <div class="bg-white rounded-xl shadow-md p-6">
+            <div class="bg-white rounded-xl shadow-md p-6 stat-card">
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-gray-500">Total Complaints</p>
@@ -43,7 +44,7 @@
                     <i class="fas fa-file-alt text-4xl text-orange-400"></i>
                 </div>
             </div>
-            <div class="bg-white rounded-xl shadow-md p-6">
+            <div class="bg-white rounded-xl shadow-md p-6 stat-card">
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-gray-500">Resolved</p>
@@ -52,19 +53,151 @@
                     <i class="fas fa-check-circle text-4xl text-green-400"></i>
                 </div>
             </div>
-            <div class="bg-white rounded-xl shadow-md p-6">
+            <div class="bg-white rounded-xl shadow-md p-6 stat-card">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-gray-500">Admins</p>
-                        <p class="text-3xl font-bold text-purple-600">{{ admin_count }}</p>
+                        <p class="text-gray-500">Resolution Rate</p>
+                        <p class="text-3xl font-bold text-purple-600">
+                            {% if total_complaints > 0 %}
+                                {{ resolved_complaints|floatformat:0 }}%
+                            {% else %}
+                                0%
+                            {% endif %}
+                        </p>
                     </div>
-                    <i class="fas fa-user-shield text-4xl text-purple-400"></i>
+                    <i class="fas fa-chart-line text-4xl text-purple-400"></i>
                 </div>
             </div>
         </div>
         
+        <!-- Admins Table -->
+        <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
+            <div class="px-6 py-4 bg-blue-50 border-b border-blue-200">
+                <h2 class="text-xl font-semibold text-blue-800">
+                    <i class="fas fa-user-shield mr-2"></i>Administrators
+                    <span class="text-sm text-blue-600 ml-2">({{ total_admins }})</span>
+                </h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Name</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Email</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Joined</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        {% for admin in admins %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-3">{{ admin.first_name }} {{ admin.last_name }}</td>
+                            <td class="px-4 py-3">{{ admin.email }}</td>
+                            <td class="px-4 py-3">{{ admin.date_joined|date:"M d, Y" }}</td>
+                            <td class="px-4 py-3">
+                                {% if admin.is_active %}
+                                    <span class="text-green-600"><i class="fas fa-circle text-xs mr-1"></i>Active</span>
+                                {% else %}
+                                    <span class="text-red-600"><i class="fas fa-circle text-xs mr-1"></i>Inactive</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="px-4 py-8 text-center text-gray-500">No administrators found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Residents Table -->
+        <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8">
+            <div class="px-6 py-4 bg-green-50 border-b border-green-200">
+                <h2 class="text-xl font-semibold text-green-800">
+                    <i class="fas fa-users mr-2"></i>Residents
+                    <span class="text-sm text-green-600 ml-2">({{ total_residents }})</span>
+                </h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Name</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Email</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Joined</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Verified</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        {% for resident in residents %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-3">{{ resident.first_name }} {{ resident.last_name }}</td>
+                            <td class="px-4 py-3">{{ resident.email }}</td>
+                            <td class="px-4 py-3">{{ resident.date_joined|date:"M d, Y" }}</td>
+                            <td class="px-4 py-3">
+                                {% if resident.is_verified %}
+                                    <span class="text-green-600"><i class="fas fa-check-circle"></i> Verified</span>
+                                {% else %}
+                                    <span class="text-yellow-600"><i class="fas fa-clock"></i> Pending</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3">
+                                {% if resident.is_active %}
+                                    <span class="text-green-600"><i class="fas fa-circle text-xs mr-1"></i>Active</span>
+                                {% else %}
+                                    <span class="text-red-600"><i class="fas fa-circle text-xs mr-1"></i>Inactive</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="px-4 py-8 text-center text-gray-500">No residents found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Captain Info -->
+        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+            <div class="px-6 py-4 bg-purple-50 border-b border-purple-200">
+                <h2 class="text-xl font-semibold text-purple-800">
+                    <i class="fas fa-crown mr-2"></i>Captain
+                    <span class="text-sm text-purple-600 ml-2">({{ total_captains }})</span>
+                </h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Name</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Email</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Joined</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        {% for captain in captains %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-3">{{ captain.first_name }} {{ captain.last_name }}</td>
+                            <td class="px-4 py-3">{{ captain.email }}</td>
+                            <td class="px-4 py-3">{{ captain.date_joined|date:"M d, Y" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="px-4 py-8 text-center text-gray-500">No captain found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
         <!-- Quick Actions -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
             <a href="{% url 'manage_users' %}" class="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition">
                 <div class="flex items-center gap-4">
                     <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
@@ -101,4 +234,14 @@
         </div>
     </div>
 </div>
+
+<style>
+    .stat-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+</style>
 {% endblock %}

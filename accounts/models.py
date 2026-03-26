@@ -1,6 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.base_user import BaseUserManager
+import random
+import string
 
 class UserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
@@ -30,6 +32,9 @@ class User(AbstractUser):
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='resident')
     first_name = models.CharField(max_length=150)
     last_name = models.CharField(max_length=150)
+    is_verified = models.BooleanField(default=False)
+    verification_code = models.CharField(max_length=6, blank=True, null=True)
+    verification_code_created_at = models.DateTimeField(blank=True, null=True)
     
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['first_name', 'last_name']
@@ -44,6 +49,15 @@ class User(AbstractUser):
     
     def is_captain(self):
         return self.role == 'captain'
+    
+    def generate_verification_code(self):
+        """Generate a 6-digit verification code"""
+        import random
+        from django.utils import timezone
+        self.verification_code = ''.join(random.choices(string.digits, k=6))
+        self.verification_code_created_at = timezone.now()
+        self.save()
+        return self.verification_code
 
 
 class AuditLog(models.Model):
@@ -55,6 +69,8 @@ class AuditLog(models.Model):
         ('create_user', 'Create User'),
         ('update_user', 'Update User'),
         ('delete_user', 'Delete User'),
+        ('email_verified', 'Email Verified'),
+        ('verification_sent', 'Verification Code Sent'),
     ]
     
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='audit_logs')

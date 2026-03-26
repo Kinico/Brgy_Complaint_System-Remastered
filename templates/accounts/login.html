@@ -5,22 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Resident Login - Barangay System</title>
     
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700;800&display=swap" rel="stylesheet">
     
     <style>
-        * {
-            font-family: 'Inter', sans-serif;
-        }
-        .font-display {
-            font-family: 'Playfair Display', serif;
-        }
+        * { font-family: 'Inter', sans-serif; }
+        .font-display { font-family: 'Playfair Display', serif; }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -34,6 +25,14 @@
             <h2 class="text-3xl font-display font-bold text-gray-800">Resident Portal</h2>
             <p class="text-gray-500 mt-2">Sign in to file and track complaints</p>
         </div>
+        
+        {% if messages %}
+            {% for message in messages %}
+                <div class="mb-4 p-3 rounded-lg {% if message.tags == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
         
         <form method="POST">
             {% csrf_token %}
@@ -53,6 +52,15 @@
                 <i class="fas fa-sign-in-alt mr-2"></i>Sign In
             </button>
         </form>
+        
+        <div class="text-center mt-6">
+            <p class="text-gray-500 text-sm">
+                Don't have an account? <a href="{% url 'register' %}" class="text-orange-500 hover:underline">Register here</a>
+            </p>
+            <a href="{% url 'admin_login' %}" class="text-gray-400 hover:text-gray-600 text-sm mt-2 inline-block">
+                <i class="fas fa-shield-alt mr-1"></i>Admin Login
+            </a>
+        </div>
     </div>
 </div>
 
