@@ -24,7 +24,55 @@ def home(request):
         'total_complaints': total,
         'resolved_complaints': resolved,
     })
-
+@login_required
+@user_passes_test(lambda u: u.is_admin())
+def rejected_complaints(request):
+    """View all rejected complaints"""
+    complaints = Complaint.objects.filter(
+        status='rejected',
+        is_spam=False
+    ).order_by('-updated_at')
+    
+    search = request.GET.get('search', '')
+    if search:
+        complaints = complaints.filter(
+            Q(tracking_code__icontains=search) |
+            Q(description__icontains=search) |
+            Q(location__icontains=search) |
+            Q(submitted_by__first_name__icontains=search) |
+            Q(submitted_by__last_name__icontains=search) |
+            Q(submitted_by__email__icontains=search)
+        )
+    
+    date_range = request.GET.get('date_range', 'all')
+    today = timezone.now().date()
+    if date_range == 'today':
+        complaints = complaints.filter(updated_at__date=today)
+    elif date_range == 'week':
+        start_date = today - timedelta(days=7)
+        complaints = complaints.filter(updated_at__date__gte=start_date)
+    elif date_range == 'month':
+        start_date = today - timedelta(days=30)
+        complaints = complaints.filter(updated_at__date__gte=start_date)
+    elif date_range == 'year':
+        start_date = today - timedelta(days=365)
+        complaints = complaints.filter(updated_at__date__gte=start_date)
+    
+    total_rejected = complaints.count()
+    rejected_this_month = complaints.filter(updated_at__month=today.month).count()
+    
+    paginator = Paginator(complaints, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'complaints': page_obj,
+        'total_rejected': total_rejected,
+        'rejected_this_month': rejected_this_month,
+        'search': search,
+        'date_range': date_range,
+    }
+    return render(request, 'complaints/rejected_complaints.html', context)
 
 @login_required
 def submit_complaint(request):
@@ -108,12 +156,9 @@ def my_complaints(request):
 @login_required
 @user_passes_test(lambda u: u.is_admin())
 def admin_dashboard(request):
-    # Regular complaints
     complaints = Complaint.objects.all().order_by('-created_at')
-    # Anonymous complaints
     anonymous_complaints = AnonymousComplaint.objects.all().order_by('-created_at')
     
-    # Filters
     date_range = request.GET.get('date_range', 'all')
     if date_range == 'today':
         complaints = complaints.filter(created_at__date=timezone.now().date())
@@ -140,7 +185,6 @@ def admin_dashboard(request):
             Q(location__icontains=search)
         )
     
-    # Stats
     total = complaints.count()
     total_anonymous = anonymous_complaints.count()
     stats = {
@@ -155,14 +199,12 @@ def admin_dashboard(request):
         'anonymous_spam': anonymous_complaints.filter(is_spam=True).count(),
     }
     
-    # Category data for chart
     category_data = []
     for cat in Category.objects.all():
         count = complaints.filter(category=cat).count()
         if count > 0:
             category_data.append({'name': cat.name, 'count': count})
     
-    # Monthly data
     monthly_data = []
     for i in range(5, -1, -1):
         date = timezone.now().date() - timedelta(days=30*i)
@@ -175,7 +217,6 @@ def admin_dashboard(request):
             'count': count
         })
     
-    # Pending complaints count for dashboard
     pending_complaints_count = Complaint.objects.filter(
         is_spam=False,
         reviewed_by_admin=True
@@ -203,24 +244,35 @@ def update_status(request, complaint_id):
     
     if request.method == 'POST':
         new_status = request.POST.get('status')
-        notes = request.POST.get('notes', '')
+        feedback = request.POST.get('feedback', '')
         
         old_status = complaint.status
         complaint.status = new_status
         complaint.status_updated_by = request.user
+        
+        if new_status in ['resolved', 'rejected']:
+            complaint.resolution_feedback = feedback
+        else:
+            complaint.resolution_feedback = ''
+        
         complaint.save()
         
         ComplaintStatusHistory.objects.create(
             complaint=complaint,
             status=new_status,
             changed_by=request.user,
-            notes=notes
+            notes=feedback if new_status in ['resolved', 'rejected'] else ''
         )
         
-        log_audit(request.user, 'update_status', f'Changed {complaint.tracking_code} from {old_status} to {new_status}', request)
-        messages.success(request, f'Status updated to {new_status}')
+        log_audit(request.user, 'update_status', 
+                 f'Changed {complaint.tracking_code} from {old_status} to {new_status}', request)
+        
+        if feedback and new_status in ['resolved', 'rejected']:
+            messages.success(request, f'Status updated to {new_status} with feedback added.')
+        else:
+            messages.success(request, f'Status updated to {new_status}')
     
-    return redirect('admin_dashboard')
+    return redirect(request.META.get('HTTP_REFERER', 'admin_dashboard'))
 
 
 @login_required
@@ -297,12 +349,10 @@ def review_spam(request):
 def captain_dashboard(request):
     from accounts.models import User
     
-    # Get users by role
     residents = User.objects.filter(role='resident')
     admins = User.objects.filter(role='admin')
     captains = User.objects.filter(role='captain')
     
-    # Get complaint stats
     total_complaints = Complaint.objects.filter(is_spam=False).count()
     resolved_complaints = Complaint.objects.filter(status='resolved', is_spam=False).count()
     
@@ -319,8 +369,6 @@ def captain_dashboard(request):
     }
     return render(request, 'complaints/captain_dashboard.html', context)
 
-
-# ==================== RESOLVED & PENDING VIEWS ====================
 
 @login_required
 @user_passes_test(lambda u: u.is_admin())
@@ -463,6 +511,7 @@ def flag_as_spam(request, complaint_id):
         complaint.spam_confidence = 1.0
         complaint.reviewed_by_admin = True
         complaint.status = 'rejected'
+        complaint.resolution_feedback = 'Flagged as spam by admin'
         complaint.save()
         
         ComplaintStatusHistory.objects.create(
@@ -496,8 +545,6 @@ def mark_as_not_spam(request, complaint_id):
     
     return redirect(request.META.get('HTTP_REFERER', 'review_spam'))
 
-
-# ==================== ANONYMOUS COMPLAINT VIEWS ====================
 
 def anonymous_complaint(request):
     if request.method == 'POST':
@@ -545,8 +592,6 @@ def anonymous_track_result(request, tracking_code):
     return render(request, 'complaints/anonymous_track_result.html', {'complaint': complaint})
 
 
-# ==================== EXPORT FUNCTIONS ====================
-
 @login_required
 @user_passes_test(lambda u: u.is_admin())
 def export_complaints_excel(request):
@@ -585,7 +630,7 @@ def export_complaints_excel(request):
     ws.title = "Complaints"
     
     headers = ['Tracking Code', 'Complainant', 'Email', 'Category', 'Description', 
-               'Location', 'Status', 'Is Spam', 'Created Date', 'Resolved Date']
+               'Location', 'Status', 'Is Spam', 'Feedback', 'Created Date', 'Resolved Date']
     
     header_font = Font(bold=True, color="FFFFFF")
     header_fill = PatternFill(start_color="4E73DF", end_color="4E73DF", fill_type="solid")
@@ -605,8 +650,9 @@ def export_complaints_excel(request):
         ws.cell(row=row, column=6, value=complaint.location)
         ws.cell(row=row, column=7, value=complaint.get_status_display())
         ws.cell(row=row, column=8, value='Yes' if complaint.is_spam else 'No')
-        ws.cell(row=row, column=9, value=complaint.created_at.strftime('%Y-%m-%d %H:%M'))
-        ws.cell(row=row, column=10, value=complaint.resolved_at.strftime('%Y-%m-%d %H:%M') if complaint.resolved_at else '')
+        ws.cell(row=row, column=9, value=complaint.resolution_feedback or '')
+        ws.cell(row=row, column=10, value=complaint.created_at.strftime('%Y-%m-%d %H:%M'))
+        ws.cell(row=row, column=11, value=complaint.resolved_at.strftime('%Y-%m-%d %H:%M') if complaint.resolved_at else '')
     
     for column in ws.columns:
         max_length = 0
@@ -667,7 +713,7 @@ def export_complaints_csv(request):
     writer = csv.writer(response)
     
     writer.writerow(['Tracking Code', 'Complainant', 'Email', 'Category', 'Description', 
-                     'Location', 'Status', 'Is Spam', 'Created Date', 'Resolved Date'])
+                     'Location', 'Status', 'Is Spam', 'Feedback', 'Created Date', 'Resolved Date'])
     
     for complaint in complaints:
         writer.writerow([
@@ -679,6 +725,7 @@ def export_complaints_csv(request):
             complaint.location,
             complaint.get_status_display(),
             'Yes' if complaint.is_spam else 'No',
+            complaint.resolution_feedback or '',
             complaint.created_at.strftime('%Y-%m-%d %H:%M'),
             complaint.resolved_at.strftime('%Y-%m-%d %H:%M') if complaint.resolved_at else ''
         ])
@@ -769,18 +816,22 @@ def export_complaints_pdf(request):
     elements.append(Paragraph("Complaint Details", styles['Heading2']))
     elements.append(Spacer(1, 0.1*inch))
     
-    table_data = [['Tracking', 'Complainant', 'Category', 'Status', 'Date']]
+    table_data = [['Tracking', 'Complainant', 'Category', 'Status', 'Feedback', 'Date']]
     
     for complaint in complaints[:20]:
+        feedback = complaint.resolution_feedback or ''
+        if len(feedback) > 50:
+            feedback = feedback[:47] + '...'
         table_data.append([
             complaint.tracking_code,
             f"{complaint.submitted_by.first_name} {complaint.submitted_by.last_name}",
             complaint.category.name if complaint.category else 'Uncategorized',
             complaint.get_status_display(),
+            feedback,
             complaint.created_at.strftime('%Y-%m-%d')
         ])
     
-    complaint_table = Table(table_data, colWidths=[1.2*inch, 1.5*inch, 1.2*inch, 1*inch, 1.2*inch])
+    complaint_table = Table(table_data, colWidths=[1.2*inch, 1.5*inch, 1.2*inch, 1*inch, 1.5*inch, 1.2*inch])
     complaint_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4E73DF')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -793,3 +844,47 @@ def export_complaints_pdf(request):
     
     doc.build(elements)
     return response
+
+@login_required
+@user_passes_test(lambda u: u.is_captain())
+def create_admin(request):
+    """Create a new admin account (Captain only)"""
+    if request.method == 'POST':
+        email = request.POST.get('email')
+        password = request.POST.get('password')
+        confirm_password = request.POST.get('confirm_password')
+        first_name = request.POST.get('first_name')
+        last_name = request.POST.get('last_name')
+        
+        # Check if passwords match
+        if password != confirm_password:
+            messages.error(request, 'Passwords do not match.')
+            return redirect('create_admin')
+        
+        # Check password length
+        if len(password) < 8:
+            messages.error(request, 'Password must be at least 8 characters long.')
+            return redirect('create_admin')
+        
+        # Check if email already exists
+        if User.objects.filter(email=email).exists():
+            messages.error(request, f'Email {email} is already registered.')
+            return redirect('create_admin')
+        
+        # Create admin user
+        admin_user = User.objects.create_user(
+            email=email,
+            password=password,
+            first_name=first_name,
+            last_name=last_name,
+            role='admin',
+            is_staff=True,
+            is_active=True,
+            is_verified=True
+        )
+        
+        log_audit(request.user, 'create_user', f'Created admin account: {email}', request)
+        messages.success(request, f'Admin account created for {first_name} {last_name} ({email})')
+        return redirect('manage_users')
+    
+    return render(request, 'accounts/create_admin.html')

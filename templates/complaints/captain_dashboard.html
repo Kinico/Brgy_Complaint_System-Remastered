@@ -5,15 +5,15 @@
 {% block content %}
 <div class="bg-gray-100 min-h-screen py-8">
     <div class="container mx-auto px-4">
-        <!-- Header -->
-        <div class="flex justify-between items-center mb-8">
+        <!-- Header with more navigation buttons -->
+        <div class="flex justify-between items-center mb-8 flex-wrap gap-3">
             <div>
                 <h1 class="text-3xl font-display font-bold text-gray-800">Captain Dashboard</h1>
                 <p class="text-gray-500">Welcome, {{ user.first_name|default:user.username }}!</p>
             </div>
-            <div class="flex gap-3">
+            <div class="flex gap-3 flex-wrap">
                 <a href="{% url 'admin_dashboard' %}" class="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600">
-                    <i class="fas fa-chart-line mr-2"></i>View Analytics
+                    <i class="fas fa-chart-line mr-2"></i>Analytics
                 </a>
                 <a href="{% url 'manage_users' %}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
                     <i class="fas fa-users mr-2"></i>Manage Users
@@ -21,7 +21,44 @@
                 <a href="{% url 'audit_log' %}" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700">
                     <i class="fas fa-history mr-2"></i>Audit Log
                 </a>
+                <a href="{% url 'pending_complaints' %}" class="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700">
+                    <i class="fas fa-clock mr-2"></i>Active
+                </a>
+                <a href="{% url 'resolved_complaints' %}" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+                    <i class="fas fa-check-circle mr-2"></i>Resolved
+                </a>
+                <a href="{% url 'rejected_complaints' %}" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">
+                    <i class="fas fa-times-circle mr-2"></i>Rejected
+                </a>
             </div>
+        </div>
+        
+        <!-- Quick Navigation Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-6 gap-4 mb-8">
+            <a href="{% url 'admin_dashboard' %}" class="bg-white rounded-xl shadow-md p-4 text-center hover:shadow-lg transition">
+                <i class="fas fa-chart-line text-orange-500 text-2xl mb-2 block"></i>
+                <span class="text-sm font-medium">Analytics</span>
+            </a>
+            <a href="{% url 'pending_complaints' %}" class="bg-white rounded-xl shadow-md p-4 text-center hover:shadow-lg transition">
+                <i class="fas fa-clock text-yellow-500 text-2xl mb-2 block"></i>
+                <span class="text-sm font-medium">Active</span>
+            </a>
+            <a href="{% url 'resolved_complaints' %}" class="bg-white rounded-xl shadow-md p-4 text-center hover:shadow-lg transition">
+                <i class="fas fa-check-circle text-green-500 text-2xl mb-2 block"></i>
+                <span class="text-sm font-medium">Resolved</span>
+            </a>
+            <a href="{% url 'rejected_complaints' %}" class="bg-white rounded-xl shadow-md p-4 text-center hover:shadow-lg transition">
+                <i class="fas fa-times-circle text-red-500 text-2xl mb-2 block"></i>
+                <span class="text-sm font-medium">Rejected</span>
+            </a>
+            <a href="{% url 'manage_users' %}" class="bg-white rounded-xl shadow-md p-4 text-center hover:shadow-lg transition">
+                <i class="fas fa-users text-blue-500 text-2xl mb-2 block"></i>
+                <span class="text-sm font-medium">Users</span>
+            </a>
+            <a href="{% url 'audit_log' %}" class="bg-white rounded-xl shadow-md p-4 text-center hover:shadow-lg transition">
+                <i class="fas fa-history text-purple-500 text-2xl mb-2 block"></i>
+                <span class="text-sm font-medium">Audit</span>
+            </a>
         </div>
         
         <!-- Stats Cards -->
@@ -103,9 +140,7 @@
                             </td>
                         </tr>
                         {% empty %}
-                        <tr>
-                            <td colspan="4" class="px-4 py-8 text-center text-gray-500">No administrators found.</td>
-                        </tr>
+                        <tr><td colspan="4" class="px-4 py-8 text-center text-gray-500">No administrators found.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -153,9 +188,7 @@
                             </td>
                         </tr>
                         {% empty %}
-                        <tr>
-                            <td colspan="5" class="px-4 py-8 text-center text-gray-500">No residents found.</td>
-                        </tr>
+                        <tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">No residents found.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -177,7 +210,7 @@
                             <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Name</th>
                             <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Email</th>
                             <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Joined</th>
-                        </tr>
+                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
                         {% for captain in captains %}
@@ -187,50 +220,11 @@
                             <td class="px-4 py-3">{{ captain.date_joined|date:"M d, Y" }}</td>
                         </tr>
                         {% empty %}
-                        <tr>
-                            <td colspan="3" class="px-4 py-8 text-center text-gray-500">No captain found.</td>
-                        </tr>
+                        <tr><td colspan="3" class="px-4 py-8 text-center text-gray-500">No captain found.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-        </div>
-        
-        <!-- Quick Actions -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-            <a href="{% url 'manage_users' %}" class="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition">
-                <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                        <i class="fas fa-user-plus text-blue-600 text-xl"></i>
-                    </div>
-                    <div>
-                        <h3 class="font-semibold text-lg">Add New Admin</h3>
-                        <p class="text-gray-500 text-sm">Create administrator accounts</p>
-                    </div>
-                </div>
-            </a>
-            <a href="{% url 'audit_log' %}" class="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition">
-                <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                        <i class="fas fa-history text-purple-600 text-xl"></i>
-                    </div>
-                    <div>
-                        <h3 class="font-semibold text-lg">View Audit Log</h3>
-                        <p class="text-gray-500 text-sm">Monitor all system activities</p>
-                    </div>
-                </div>
-            </a>
-            <a href="{% url 'admin_dashboard' %}" class="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition">
-                <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                        <i class="fas fa-chart-bar text-orange-600 text-xl"></i>
-                    </div>
-                    <div>
-                        <h3 class="font-semibold text-lg">Analytics</h3>
-                        <p class="text-gray-500 text-sm">View complaint statistics</p>
-                    </div>
-                </div>
-            </a>
         </div>
     </div>
 </div>

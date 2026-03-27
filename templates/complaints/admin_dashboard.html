@@ -18,34 +18,17 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
-        * {
-            font-family: 'Inter', sans-serif;
-        }
-        .font-display {
-            font-family: 'Playfair Display', serif;
-        }
-        .hero-gradient {
-            background: linear-gradient(135deg, #f97316, #c2410c);
-        }
-        .card-hover {
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .card-hover:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
-        }
+        * { font-family: 'Inter', sans-serif; }
+        .font-display { font-family: 'Playfair Display', serif; }
+        .stat-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); }
         .status-pending { background: #fef3c7; color: #b45309; }
         .status-under_review { background: #dbeafe; color: #1e40af; }
         .status-in_progress { background: #e0e7ff; color: #3730a3; }
         .status-resolved { background: #d1fae5; color: #065f46; }
         .status-rejected { background: #fee2e2; color: #991b1b; }
-        .btn-primary { background: #f97316; color: white; }
-        .btn-primary:hover { background: #ea580c; }
         
-        /* Fix for dropdown */
-        .dropdown-container {
-            position: relative;
-        }
+        .dropdown-container { position: relative; }
         .dropdown-menu {
             position: absolute;
             top: 100%;
@@ -60,10 +43,7 @@
             visibility: hidden;
             transition: opacity 0.2s ease, visibility 0.2s ease;
         }
-        .dropdown-container:hover .dropdown-menu {
-            opacity: 1;
-            visibility: visible;
-        }
+        .dropdown-container:hover .dropdown-menu { opacity: 1; visibility: visible; }
         .dropdown-container::after {
             content: '';
             position: absolute;
@@ -72,15 +52,6 @@
             width: 100%;
             height: 5px;
             background: transparent;
-        }
-        
-        /* Stat card hover effect */
-        .stat-card {
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-        .stat-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
         }
     </style>
 </head>
@@ -126,21 +97,22 @@
                     </div>
                 {% else %}
                     <a href="{% url 'login' %}" class="px-4 py-2 border border-orange-500 text-orange-500 rounded-lg hover:bg-orange-50 transition">
-                        <i class="fas fa-user mr-2"></i>Login
+                        <i class="fas fa-user mr-2"></i>Resident Login
                     </a>
-                    <a href="{% url 'register' %}" class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition">
+                    <a href="{% url 'admin_login' %}" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                        <i class="fas fa-shield-alt mr-2"></i>Admin Login
+                    </a>
+                    <a href="{% url 'register' %}" class="px-4 py-2 border border-green-500 text-green-500 rounded-lg hover:bg-green-50 transition">
                         <i class="fas fa-user-plus mr-2"></i>Register
                     </a>
                 {% endif %}
             </div>
             
-            <!-- Mobile Menu Button -->
             <button id="mobileMenuBtn" class="md:hidden text-gray-600">
                 <i class="fas fa-bars text-2xl"></i>
             </button>
         </div>
         
-        <!-- Mobile Menu -->
         <div id="mobileMenu" class="hidden md:hidden bg-white border-t">
             <div class="flex flex-col p-4 space-y-3">
                 <a href="{% url 'home' %}" class="text-gray-600 hover:text-orange-500 py-2">Home</a>
@@ -153,14 +125,14 @@
                     <a href="{% url 'my_complaints' %}" class="text-gray-600 py-2">My Complaints</a>
                     <a href="{% url 'logout' %}" class="text-red-600 py-2">Logout</a>
                 {% else %}
-                    <a href="{% url 'login' %}" class="text-orange-500 py-2">Login</a>
-                    <a href="{% url 'register' %}" class="bg-orange-500 text-white text-center py-2 rounded-lg">Register</a>
+                    <a href="{% url 'login' %}" class="text-orange-500 py-2">Resident Login</a>
+                    <a href="{% url 'admin_login' %}" class="text-blue-600 py-2">Admin Login</a>
+                    <a href="{% url 'register' %}" class="bg-green-500 text-white text-center py-2 rounded-lg">Register</a>
                 {% endif %}
             </div>
         </div>
     </nav>
 
-    <!-- Messages -->
     {% if messages %}
         <div class="container mx-auto px-4 mt-4">
             {% for message in messages %}
@@ -171,17 +143,21 @@
         </div>
     {% endif %}
 
-    <!-- Main Content -->
     <main>
         <div class="bg-gray-100 min-h-screen py-8">
             <div class="container mx-auto px-4">
-                <!-- Header -->
-                <div class="flex justify-between items-center mb-8">
+                <!-- Header with Back to Captain Dashboard button for Captains -->
+                <div class="flex justify-between items-center mb-8 flex-wrap gap-3">
                     <div>
                         <h1 class="text-3xl font-display font-bold text-gray-800">Admin Dashboard</h1>
                         <p class="text-gray-500">Manage complaints and view analytics</p>
                     </div>
-                    <div class="flex gap-3">
+                    <div class="flex gap-3 flex-wrap">
+                        {% if user.is_captain %}
+                        <a href="{% url 'captain_dashboard' %}" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition">
+                            <i class="fas fa-arrow-left mr-2"></i>Back to Captain Dashboard
+                        </a>
+                        {% endif %}
                         <a href="{% url 'manage_categories' %}" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition">
                             <i class="fas fa-tags mr-2"></i>Categories
                         </a>
@@ -200,182 +176,90 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-8">
                     <div class="bg-white rounded-xl shadow-md p-5 stat-card">
                         <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-gray-500 text-sm">Total</p>
-                                <p class="text-2xl font-bold">{{ total }}</p>
-                            </div>
+                            <div><p class="text-gray-500 text-sm">Total</p><p class="text-2xl font-bold">{{ total }}</p></div>
                             <i class="fas fa-file-alt text-3xl text-gray-400"></i>
                         </div>
                     </div>
                     <div class="bg-white rounded-xl shadow-md p-5 stat-card">
                         <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-gray-500 text-sm">Pending</p>
-                                <p class="text-2xl font-bold text-yellow-600">{{ stats.pending }}</p>
-                            </div>
+                            <div><p class="text-gray-500 text-sm">Pending</p><p class="text-2xl font-bold text-yellow-600">{{ stats.pending }}</p></div>
                             <i class="fas fa-clock text-3xl text-yellow-400"></i>
                         </div>
                     </div>
                     <div class="bg-white rounded-xl shadow-md p-5 stat-card">
                         <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-gray-500 text-sm">Under Review</p>
-                                <p class="text-2xl font-bold text-blue-600">{{ stats.under_review }}</p>
-                            </div>
+                            <div><p class="text-gray-500 text-sm">Under Review</p><p class="text-2xl font-bold text-blue-600">{{ stats.under_review }}</p></div>
                             <i class="fas fa-search text-3xl text-blue-400"></i>
                         </div>
                     </div>
                     <div class="bg-white rounded-xl shadow-md p-5 stat-card">
                         <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-gray-500 text-sm">In Progress</p>
-                                <p class="text-2xl font-bold text-purple-600">{{ stats.in_progress }}</p>
-                            </div>
+                            <div><p class="text-gray-500 text-sm">In Progress</p><p class="text-2xl font-bold text-purple-600">{{ stats.in_progress }}</p></div>
                             <i class="fas fa-spinner text-3xl text-purple-400"></i>
                         </div>
                     </div>
                     <div class="bg-white rounded-xl shadow-md p-5 stat-card">
                         <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-gray-500 text-sm">Resolved</p>
-                                <p class="text-2xl font-bold text-green-600">{{ stats.resolved }}</p>
-                            </div>
+                            <div><p class="text-gray-500 text-sm">Resolved</p><p class="text-2xl font-bold text-green-600">{{ stats.resolved }}</p></div>
                             <i class="fas fa-check-circle text-3xl text-green-400"></i>
                         </div>
                     </div>
                     <div class="bg-white rounded-xl shadow-md p-5 stat-card">
                         <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-gray-500 text-sm">Spam</p>
-                                <p class="text-2xl font-bold text-red-600">{{ stats.spam }}</p>
-                            </div>
+                            <div><p class="text-gray-500 text-sm">Spam</p><p class="text-2xl font-bold text-red-600">{{ stats.spam }}</p></div>
                             <i class="fas fa-shield-alt text-3xl text-red-400"></i>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Anonymous Stats Cards -->
-                <div class="bg-gray-50 rounded-xl p-4 mb-8 border border-gray-200">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-md font-semibold text-gray-700">
-                            <i class="fas fa-user-secret text-gray-500 mr-2"></i>Anonymous Complaints
-                        </h3>
-                        <div class="flex gap-2">
-                            <span class="text-xs bg-gray-200 px-2 py-1 rounded-full">Total: {{ total_anonymous }}</span>
-                            <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full">Pending: {{ stats.anonymous_pending }}</span>
-                            <span class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full">Spam: {{ stats.anonymous_spam }}</span>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="bg-white rounded-lg p-3 text-center">
-                            <div class="text-2xl font-bold text-gray-700">{{ total_anonymous }}</div>
-                            <div class="text-xs text-gray-500">Total Anonymous</div>
-                        </div>
-                        <div class="bg-white rounded-lg p-3 text-center">
-                            <div class="text-2xl font-bold text-yellow-600">{{ stats.anonymous_pending }}</div>
-                            <div class="text-xs text-gray-500">Pending Anonymous</div>
-                        </div>
-                        <div class="bg-white rounded-lg p-3 text-center">
-                            <div class="text-2xl font-bold text-red-600">{{ stats.anonymous_spam }}</div>
-                            <div class="text-xs text-gray-500">Spam Anonymous</div>
                         </div>
                     </div>
                 </div>
                 
                 <!-- Charts -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                    <div class="bg-white rounded-xl shadow-md p-6">
-                        <h3 class="text-lg font-semibold mb-4">Complaints by Category</h3>
-                        <canvas id="categoryChart" height="250"></canvas>
-                    </div>
-                    <div class="bg-white rounded-xl shadow-md p-6">
-                        <h3 class="text-lg font-semibold mb-4">Monthly Trends</h3>
-                        <canvas id="monthlyChart" height="250"></canvas>
-                    </div>
+                    <div class="bg-white rounded-xl shadow-md p-6"><h3 class="text-lg font-semibold mb-4">Complaints by Category</h3><canvas id="categoryChart" height="250"></canvas></div>
+                    <div class="bg-white rounded-xl shadow-md p-6"><h3 class="text-lg font-semibold mb-4">Monthly Trends</h3><canvas id="monthlyChart" height="250"></canvas></div>
                 </div>
                 
                 <!-- Search and Filter -->
                 <div class="bg-white rounded-xl shadow-md p-4 mb-6">
                     <form method="GET" class="flex flex-col md:flex-row gap-4">
-                        <input type="text" name="search" value="{{ search }}" placeholder="Search by code, name, location..." 
-                               class="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500">
+                        <input type="text" name="search" value="{{ search }}" placeholder="Search by code, name, location..." class="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500">
                         <select name="date_range" class="px-4 py-2 border rounded-lg">
                             <option value="all" {% if date_range == 'all' %}selected{% endif %}>All Time</option>
                             <option value="today" {% if date_range == 'today' %}selected{% endif %}>Today</option>
                             <option value="week" {% if date_range == 'week' %}selected{% endif %}>This Week</option>
                             <option value="month" {% if date_range == 'month' %}selected{% endif %}>This Month</option>
                         </select>
-                        <button type="submit" class="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600">
-                            <i class="fas fa-search mr-2"></i>Filter
-                        </button>
+                        <button type="submit" class="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600"><i class="fas fa-search mr-2"></i>Filter</button>
                     </form>
                 </div>
                 
                 <!-- Active Complaints Table -->
                 <div class="bg-white rounded-xl shadow-md overflow-hidden">
                     <div class="px-6 py-4 bg-gray-50 border-b flex justify-between items-center flex-wrap gap-3">
-                        <div>
-                            <h3 class="text-lg font-semibold text-gray-800">Active Complaints</h3>
-                            <p class="text-sm text-gray-500 mt-1">Complaints pending resolution</p>
-                        </div>
+                        <div><h3 class="text-lg font-semibold text-gray-800">Active Complaints</h3><p class="text-sm text-gray-500 mt-1">Complaints pending resolution</p></div>
                         <div class="flex gap-3">
-                            <a href="{% url 'pending_complaints' %}" class="inline-flex items-center gap-1 px-3 py-1.5 bg-orange-50 text-orange-600 rounded-lg text-sm hover:bg-orange-100 transition">
-                                <i class="fas fa-clock text-xs"></i>
-                                <span>View All Active</span>
-                                <span class="bg-orange-200 text-orange-700 rounded-full px-1.5 py-0.5 text-xs ml-1">{{ pending_complaints_count|default:"0" }}</span>
-                            </a>
-                            <a href="{% url 'resolved_complaints' %}" class="inline-flex items-center gap-1 px-3 py-1.5 bg-green-50 text-green-600 rounded-lg text-sm hover:bg-green-100 transition">
-                                <i class="fas fa-check-circle text-xs"></i>
-                                <span>View Resolved</span>
-                            </a>
+                            <a href="{% url 'resolved_complaints' %}" class="inline-flex items-center gap-1 px-3 py-1.5 bg-green-50 text-green-600 rounded-lg text-sm hover:bg-green-100 transition"><i class="fas fa-check-circle text-xs"></i><span>View Resolved</span></a>
+                            <a href="{% url 'rejected_complaints' %}" class="inline-flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-sm hover:bg-red-100 transition"><i class="fas fa-times-circle text-xs"></i><span>View Rejected</span></a>
                         </div>
                     </div>
-                    
                     <div class="overflow-x-auto">
                         <table class="w-full">
                             <thead class="bg-gray-50 border-b border-gray-200">
-                                <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tracking Code</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Complainant</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Category</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Description</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
-                                </tr>
+                                <tr><th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Code</th><th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Complainant</th><th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Category</th><th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Description</th><th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th><th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th><th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th></tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100">
                                 {% for complaint in complaints %}
-                                {% if complaint.status != 'resolved' %}
+                                {% if complaint.status != 'resolved' and complaint.status != 'rejected' %}
                                 <tr class="hover:bg-gray-50 transition duration-150">
-                                    <td class="px-4 py-3">
-                                        <div class="flex items-center gap-2">
-                                            <span class="font-mono text-sm font-semibold text-gray-800">{{ complaint.tracking_code }}</span>
-                                            {% if complaint.is_spam %}
-                                            <span class="inline-flex items-center gap-1 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
-                                                <i class="fas fa-shield-alt text-xs"></i>
-                                                <span>Spam</span>
-                                            </span>
-                                            {% endif %}
-                                        </div>
-                                    </td>
+                                    <td class="px-4 py-3"><span class="font-mono text-sm font-semibold text-gray-800">{{ complaint.tracking_code }}</span>{% if complaint.is_spam %}<span class="ml-2 inline-flex items-center gap-1 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full"><i class="fas fa-shield-alt text-xs"></i><span>Spam</span></span>{% endif %}</td>
                                     <td class="px-4 py-3">{{ complaint.submitted_by.first_name }} {{ complaint.submitted_by.last_name }}</td>
                                     <td class="px-4 py-3">{{ complaint.category.name|default:"Uncategorized" }}</td>
-                                    <td class="px-4 py-3 max-w-xs">
-                                        <p class="text-sm text-gray-600 truncate" title="{{ complaint.description }}">
-                                            {{ complaint.description|truncatechars:50 }}
-                                        </p>
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium status-{{ complaint.status }}">
-                                            {{ complaint.get_status_display }}
-                                        </span>
-                                    </td>
+                                    <td class="px-4 py-3 max-w-xs"><p class="text-sm text-gray-600 truncate" title="{{ complaint.description }}">{{ complaint.description|truncatechars:50 }}</p></td>
+                                    <td class="px-4 py-3"><span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium status-{{ complaint.status }}">{{ complaint.get_status_display }}</span></td>
                                     <td class="px-4 py-3 text-sm">{{ complaint.created_at|date:"M d, Y" }}</td>
                                     <td class="px-4 py-3">
-                                        <div class="flex gap-2">
-                                            <form method="POST" action="{% url 'update_status' complaint.id %}" class="flex gap-1">
-                                                {% csrf_token %}
+                                        <form method="POST" action="{% url 'update_status' complaint.id %}" class="flex flex-col gap-2">
+                                            {% csrf_token %}
+                                            <div class="flex gap-1">
                                                 <select name="status" class="text-xs border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-500">
                                                     <option value="pending" {% if complaint.status == 'pending' %}selected{% endif %}>Pending</option>
                                                     <option value="under_review" {% if complaint.status == 'under_review' %}selected{% endif %}>Under Review</option>
@@ -383,109 +267,24 @@
                                                     <option value="resolved" {% if complaint.status == 'resolved' %}selected{% endif %}>Resolved</option>
                                                     <option value="rejected" {% if complaint.status == 'rejected' %}selected{% endif %}>Rejected</option>
                                                 </select>
-                                                <button type="submit" class="bg-orange-500 hover:bg-orange-600 text-white px-2 py-1.5 rounded-lg text-xs transition">
-                                                    <i class="fas fa-save text-xs"></i>
-                                                </button>
+                                                <button type="submit" class="bg-orange-500 hover:bg-orange-600 text-white px-2 py-1.5 rounded-lg text-xs transition"><i class="fas fa-save text-xs"></i> Update</button>
+                                            </div>
+                                            <div class="feedback-field hidden mt-1"><textarea name="feedback" rows="2" class="w-full text-xs border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-orange-500" placeholder="Reason for rejection or resolution notes..."></textarea></div>
+                                        </form>
+                                        <div class="mt-2 flex gap-1">
+                                            {% if not complaint.is_spam %}
+                                            <form method="POST" action="{% url 'flag_as_spam' complaint.id %}" class="inline">
+                                                {% csrf_token %}
+                                                <button type="submit" class="bg-red-50 hover:bg-red-100 text-red-600 px-2 py-1 rounded text-xs transition" onclick="return confirm('Flag this complaint as spam?')"><i class="fas fa-flag"></i> Spam</button>
                                             </form>
-                                            <a href="{% url 'track_complaint' %}?code={{ complaint.tracking_code }}" class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2 py-1.5 rounded-lg text-xs transition" target="_blank">
-                                                <i class="fas fa-eye text-xs"></i>
-                                            </a>
+                                            {% endif %}
+                                            <a href="{% url 'track_complaint' %}?code={{ complaint.tracking_code }}" class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2 py-1 rounded text-xs transition" target="_blank"><i class="fas fa-eye"></i> View</a>
                                         </div>
                                     </td>
                                 </tr>
                                 {% endif %}
                                 {% empty %}
-                                <tr>
-                                    <td colspan="7" class="px-4 py-12 text-center text-gray-500">No active complaints found.</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                
-                <!-- Anonymous Complaints Table -->
-                <div class="bg-white rounded-xl shadow-md overflow-hidden mt-8">
-                    <div class="px-6 py-4 bg-gray-50 border-b flex justify-between items-center flex-wrap gap-3">
-                        <div>
-                            <h3 class="text-lg font-semibold text-gray-800">
-                                <i class="fas fa-user-secret text-gray-500 mr-2"></i>Anonymous Complaints
-                            </h3>
-                            <p class="text-sm text-gray-500 mt-1">Complaints filed without an account</p>
-                        </div>
-                        <div class="flex gap-2">
-                            <span class="text-xs bg-gray-100 px-2 py-1 rounded-full">Total: {{ total_anonymous }}</span>
-                            <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full">Pending: {{ stats.anonymous_pending }}</span>
-                            <span class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full">Spam: {{ stats.anonymous_spam }}</span>
-                        </div>
-                    </div>
-                    
-                    <div class="overflow-x-auto">
-                        <table class="w-full">
-                            <thead class="bg-gray-50 border-b border-gray-200">
-                                <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tracking Code</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Category</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Description</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Location</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Spam</th>
-                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100">
-                                {% for complaint in anonymous_complaints %}
-                                <tr class="hover:bg-gray-50 transition duration-150">
-                                    <td class="px-4 py-3">
-                                        <span class="font-mono text-sm font-semibold text-gray-800">{{ complaint.tracking_code }}</span>
-                                        {% if complaint.is_spam %}
-                                        <span class="ml-2 inline-flex items-center gap-1 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
-                                            <i class="fas fa-shield-alt text-xs"></i>
-                                            <span>Spam</span>
-                                        </span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="px-4 py-3">{{ complaint.category.name|default:"Uncategorized" }}</td>
-                                    <td class="px-4 py-3 max-w-xs">
-                                        <p class="text-sm text-gray-600 truncate" title="{{ complaint.description }}">
-                                            {{ complaint.description|truncatechars:50 }}
-                                        </p>
-                                    </td>
-                                    <td class="px-4 py-3 text-sm">{{ complaint.location|default:"-" }}</td>
-                                    <td class="px-4 py-3">
-                                        <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium 
-                                            {% if complaint.status == 'pending' %}bg-yellow-100 text-yellow-700
-                                            {% elif complaint.status == 'under_review' %}bg-blue-100 text-blue-700
-                                            {% elif complaint.status == 'in_progress' %}bg-purple-100 text-purple-700
-                                            {% elif complaint.status == 'resolved' %}bg-green-100 text-green-700
-                                            {% else %}bg-red-100 text-red-700{% endif %}">
-                                            {{ complaint.get_status_display }}
-                                        </span>
-                                    </td>
-                                    <td class="px-4 py-3 text-sm">{{ complaint.created_at|date:"M d, Y" }}</td>
-                                    <td class="px-4 py-3">
-                                        {% if complaint.is_spam %}
-                                        <span class="text-red-500 text-xs">({{ complaint.spam_confidence|floatformat:0 }}%)</span>
-                                        {% else %}
-                                        <span class="text-green-500 text-xs">Clean</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        <a href="{% url 'anonymous_track_result' complaint.tracking_code %}" 
-                                           class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2 py-1.5 rounded-lg text-xs transition"
-                                           target="_blank">
-                                            <i class="fas fa-eye text-xs"></i> View
-                                        </a>
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="8" class="px-4 py-12 text-center text-gray-500">
-                                        <i class="fas fa-user-secret text-3xl text-gray-300 mb-2 block"></i>
-                                        No anonymous complaints yet.
-                                    </td>
-                                </tr>
+                                <tr><td colspan="7" class="px-4 py-12 text-center text-gray-500">No active complaints found.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
@@ -495,65 +294,42 @@
         </div>
     </main>
 
-    <!-- Footer -->
     <footer class="bg-gray-800 text-white mt-16">
-        <div class="container mx-auto px-4 py-8 text-center">
-            <p>&copy; 2024 Barangay 11 Complaint Management System. All rights reserved.</p>
-        </div>
+        <div class="container mx-auto px-4 py-8 text-center"><p>&copy; 2024 Barangay 11 Complaint Management System. All rights reserved.</p></div>
     </footer>
 
     <script>
-        // Mobile menu toggle
-        document.getElementById('mobileMenuBtn')?.addEventListener('click', function() {
-            const menu = document.getElementById('mobileMenu');
-            menu.classList.toggle('hidden');
-        });
+        document.getElementById('mobileMenuBtn')?.addEventListener('click', function() { const menu = document.getElementById('mobileMenu'); menu.classList.toggle('hidden'); });
         
-        // Category Chart
         const categoryData = {{ category_data|safe }};
         if (categoryData && categoryData.length > 0) {
             new Chart(document.getElementById('categoryChart'), {
                 type: 'bar',
-                data: {
-                    labels: categoryData.map(c => c.name),
-                    datasets: [{
-                        label: 'Number of Complaints',
-                        data: categoryData.map(c => c.count),
-                        backgroundColor: '#f97316',
-                        borderRadius: 8
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
-                }
+                data: { labels: categoryData.map(c => c.name), datasets: [{ label: 'Number of Complaints', data: categoryData.map(c => c.count), backgroundColor: '#f97316', borderRadius: 8 }] },
+                options: { responsive: true, maintainAspectRatio: true, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
             });
         }
         
-        // Monthly Chart
         const monthlyData = {{ monthly_data|safe }};
         if (monthlyData && monthlyData.length > 0) {
             new Chart(document.getElementById('monthlyChart'), {
                 type: 'line',
-                data: {
-                    labels: monthlyData.map(m => m.month),
-                    datasets: [{
-                        label: 'Complaints',
-                        data: monthlyData.map(m => m.count),
-                        borderColor: '#f97316',
-                        backgroundColor: 'rgba(249, 115, 22, 0.1)',
-                        tension: 0.3,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
-                }
+                data: { labels: monthlyData.map(m => m.month), datasets: [{ label: 'Complaints', data: monthlyData.map(m => m.count), borderColor: '#f97316', backgroundColor: 'rgba(249, 115, 22, 0.1)', tension: 0.3, fill: true }] },
+                options: { responsive: true, maintainAspectRatio: true, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
             });
         }
+        
+        document.querySelectorAll('select[name="status"]').forEach(select => {
+            select.addEventListener('change', function() {
+                const form = this.closest('form');
+                const feedbackDiv = form.querySelector('.feedback-field');
+                if (this.value === 'resolved' || this.value === 'rejected') {
+                    if (feedbackDiv) feedbackDiv.classList.remove('hidden');
+                } else {
+                    if (feedbackDiv) feedbackDiv.classList.add('hidden');
+                }
+            });
+        });
     </script>
 </body>
 </html>

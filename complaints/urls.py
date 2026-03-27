@@ -34,4 +34,9 @@ urlpatterns = [
     path('anonymous/track/', views.track_anonymous, name='track_anonymous'),
     path('anonymous/track/<str:tracking_code>/', views.anonymous_track_result, name='anonymous_track_result'),
 
+        # Complaint Status Pages
+    path('resolved-complaints/', views.resolved_complaints, name='resolved_complaints'),
+    path('pending-complaints/', views.pending_complaints, name='pending_complaints'),
+    path('rejected-complaints/', views.rejected_complaints, name='rejected_complaints'),
+
 ]

@@ -6,7 +6,6 @@ import string
 User = settings.AUTH_USER_MODEL
 
 def generate_tracking_code():
-    """Generate a unique 8-character tracking code"""
     while True:
         code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
         if not Complaint.objects.filter(tracking_code=code).exists():
@@ -53,6 +52,9 @@ class Complaint(models.Model):
     is_spam = models.BooleanField(default=False)
     spam_confidence = models.FloatField(default=0.0)
     reviewed_by_admin = models.BooleanField(default=False)
+    
+    # Feedback for resolved/rejected complaints
+    resolution_feedback = models.TextField(blank=True, null=True, help_text="Feedback for resolved or rejected complaints")
     
     def __str__(self):
         return f"{self.tracking_code} - {self.category or 'No Category'}"
@@ -106,7 +108,6 @@ class AnonymousComplaint(models.Model):
         return f"Anonymous - {self.tracking_code}"
     
     def get_status_display(self):
-        """Return the display name for the status"""
         return dict(self.STATUS_CHOICES).get(self.status, self.status)
     
     class Meta:

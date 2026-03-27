@@ -268,3 +268,36 @@ def manage_users(request):
 def audit_log(request):
     logs = AuditLog.objects.all().order_by('-created_at')
     return render(request, 'accounts/audit_log.html', {'logs': logs})
+
+@login_required
+@user_passes_test(lambda u: u.is_captain())
+def create_admin(request):
+    """Create a new admin account (Captain only)"""
+    if request.method == 'POST':
+        email = request.POST.get('email')
+        password = request.POST.get('password')
+        first_name = request.POST.get('first_name')
+        last_name = request.POST.get('last_name')
+        
+        # Check if email already exists
+        if User.objects.filter(email=email).exists():
+            messages.error(request, f'Email {email} is already registered.')
+            return redirect('manage_users')
+        
+        # Create admin user
+        admin_user = User.objects.create_user(
+            email=email,
+            password=password,
+            first_name=first_name,
+            last_name=last_name,
+            role='admin',
+            is_staff=True,
+            is_active=True,
+            is_verified=True
+        )
+        
+        log_audit(request.user, 'create_user', f'Created admin account: {email}', request)
+        messages.success(request, f'Admin account created for {first_name} {last_name} ({email})')
+        return redirect('manage_users')
+    
+    return render(request, 'accounts/create_admin.html')
