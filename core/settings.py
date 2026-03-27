@@ -97,13 +97,14 @@ LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'home'
 
+# Email settings for Gmail
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.resend.com'
+EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'resend'
-EMAIL_HOST_PASSWORD = 're_fYH9mh5s_Kj77UFpVo2pBMVXcRv8XCvTK'
-DEFAULT_FROM_EMAIL = 'Barangay 11 <noreply@barangay.complaints.com>'
+EMAIL_HOST_USER = 'salonga.kiannicolai@ue.edu.ph'
+EMAIL_HOST_PASSWORD = 'sjcifaakfznbbzzr'
+DEFAULT_FROM_EMAIL = 'Barangay 10 <salonga.kiannicolai@ue.edu.ph>'
 
 if not DEBUG:
     SECURE_SSL_REDIRECT = False
