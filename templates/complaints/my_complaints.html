@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% block title %}My Complaints - Barangay System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-12 max-w-5xl">
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-display font-bold text-gray-800">My Complaints</h1>
+        <a href="{% url 'submit_complaint' %}" class="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition">
+            <i class="fas fa-plus mr-2"></i>New Complaint
+        </a>
+    </div>
+    
+    {% if complaints %}
+        <div class="space-y-4">
+            {% for complaint in complaints %}
+            <div class="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="font-mono text-sm bg-gray-100 px-3 py-1 rounded-full">{{ complaint.tracking_code }}</span>
+                            <span class="status-{{ complaint.status }} text-xs px-3 py-1 rounded-full">
+                                {{ complaint.get_status_display }}
+                            </span>
+                            {% if complaint.is_spam %}
+                            <span class="bg-red-100 text-red-700 text-xs px-3 py-1 rounded-full">
+                                <i class="fas fa-shield-alt mr-1"></i>Flagged as Spam
+                            </span>
+                            {% endif %}
+                        </div>
+                        <h3 class="text-lg font-semibold">{{ complaint.category.name|default:"Complaint" }}</h3>
+                        <p class="text-gray-500 text-sm mt-1">{{ complaint.description|truncatechars:100 }}</p>
+                        <p class="text-gray-400 text-xs mt-2">{{ complaint.created_at|date:"M d, Y" }}</p>
+                    </div>
+                    <a href="{% url 'track_complaint' %}?code={{ complaint.tracking_code }}" class="text-orange-500 hover:text-orange-600 font-medium">
+                        View Details <i class="fas fa-arrow-right ml-1"></i>
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="bg-white rounded-xl shadow-md p-12 text-center">
+            <i class="fas fa-inbox text-5xl text-gray-300 mb-4"></i>
+            <p class="text-gray-500">You haven't filed any complaints yet.</p>
+            <a href="{% url 'submit_complaint' %}" class="inline-block mt-4 text-orange-500 hover:underline">File your first complaint</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

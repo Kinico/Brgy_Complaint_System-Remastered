@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Your Email - Barangay 11</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #f97316, #c2410c);
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            color: white;
+            font-family: 'Playfair Display', serif;
+            margin: 0;
+            font-size: 28px;
+        }
+        .content {
+            padding: 30px;
+        }
+        .button {
+            display: inline-block;
+            background: #f97316;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .footer {
+            background: #f8f9fc;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Barangay 11</h1>
+            <p style="color: rgba(255,255,255,0.9); margin-top: 8px;">Complaint Management System</p>
+        </div>
+        <div class="content">
+            <h2 style="color: #333;">Hello {{ user.first_name }} {{ user.last_name }},</h2>
+            <p style="color: #555; line-height: 1.6;">Thank you for registering with Barangay 11 Complaint Management System.</p>
+            <p style="color: #555; line-height: 1.6;">Please verify your email address to complete your registration and start filing complaints.</p>
+            
+            <div style="text-align: center;">
+                <a href="{{ link }}" class="button">Verify Email Address</a>
+            </div>
+            
+            <p style="color: #555; line-height: 1.6; font-size: 14px;">Or copy and paste this link into your browser:</p>
+            <p style="background: #f4f4f4; padding: 10px; border-radius: 8px; word-break: break-all; font-size: 12px;">{{ link }}</p>
+            
+            <p style="color: #888; font-size: 12px;">This verification link will expire in {{ expire_days }} days.</p>
+            <p style="color: #888; font-size: 12px;">If you did not create an account, please ignore this email.</p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2024 Barangay 11 Complaint Management System. All rights reserved.</p>
+            <p>This is an automated message, please do not reply.</p>
+        </div>
+    </div>
+</body>
+</html>

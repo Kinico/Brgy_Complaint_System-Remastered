@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block title %}File a Complaint - Barangay System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-12 max-w-3xl">
+    <div class="bg-white rounded-2xl shadow-xl p-8">
+        <h1 class="text-3xl font-display font-bold text-gray-800 mb-2">File a Complaint</h1>
+        <p class="text-gray-500 mb-6">Please fill out the form below. Your complaint will be reviewed by the barangay.</p>
+        
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 font-medium mb-2">Category</label>
+                {{ form.category }}
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 font-medium mb-2">Location</label>
+                {{ form.location }}
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 font-medium mb-2">Description</label>
+                {{ form.description }}
+                <div id="spamIndicator" class="mt-2 hidden"></div>
+            </div>
+            
+            <div class="mb-6">
+                <label class="block text-gray-700 font-medium mb-2">Upload Image (optional)</label>
+                {{ form.image }}
+            </div>
+            
+            <button type="submit" class="w-full bg-orange-500 text-white py-3 rounded-lg font-semibold hover:bg-orange-600 transition">
+                <i class="fas fa-paper-plane mr-2"></i>Submit Complaint
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+    const descriptionField = document.querySelector('#id_description');
+    const spamIndicator = document.getElementById('spamIndicator');
+    
+    if (descriptionField) {
+        descriptionField.addEventListener('input', function() {
+            const text = this.value;
+            if (text.length > 10) {
+                fetch('/api/check-spam/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({ text: text })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.is_spam) {
+                        spamIndicator.innerHTML = `
+                            <div class="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
+                                <i class="fas fa-exclamation-triangle mr-2"></i>
+                                ⚠️ This complaint looks like spam. It will be reviewed by an admin.
+                            </div>
+                        `;
+                        spamIndicator.classList.remove('hidden');
+                    } else {
+                        spamIndicator.innerHTML = `
+                            <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+                                <i class="fas fa-check-circle mr-2"></i>
+                                ✅ Your complaint looks legitimate.
+                            </div>
+                        `;
+                        spamIndicator.classList.remove('hidden');
+                    }
+                });
+            } else {
+                spamIndicator.classList.add('hidden');
+            }
+        });
+    }
+</script>
+{% endblock %}
