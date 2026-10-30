@@ -5,6 +5,7 @@ from django.contrib import messages
 from django.core.mail import send_mail
 from django.utils import timezone
 from django.conf import settings
+from django.utils.http import url_has_allowed_host_and_scheme
 from datetime import timedelta
 from .models import User, AuditLog
 from .forms import RegistrationForm, VerificationCodeForm
@@ -32,7 +33,7 @@ def send_verification_code(user, request):
     """Send 6-digit verification code via email"""
     code = user.generate_verification_code()
     
-    subject = 'Verify Your Email - Barangay 11'
+    subject = f'Verify Your Email - {settings.BARANGAY_NAME}'
     html_message = f"""
     <!DOCTYPE html>
     <html>
@@ -51,7 +52,7 @@ def send_verification_code(user, request):
     <body>
         <div class="container">
             <div class="header">
-                <h1>Barangay 11</h1>
+                <h1>{settings.BARANGAY_NAME}</h1>
                 <p style="color: rgba(255,255,255,0.9); margin: 5px 0 0;">Complaint Management System</p>
             </div>
             <h2>Hello {user.first_name} {user.last_name},</h2>
@@ -60,7 +61,7 @@ def send_verification_code(user, request):
             <p>This code will expire in <strong>10 minutes</strong>.</p>
             <p>If you did not create an account, please ignore this email.</p>
             <div class="footer">
-                <p>&copy; 2024 Barangay 11 Complaint Management System</p>
+                <p>&copy; {timezone.now().year} {settings.BARANGAY_NAME} Complaint Management System</p>
             </div>
         </div>
     </body>
@@ -79,7 +80,7 @@ This code will expire in 10 minutes.
 If you did not create an account, please ignore this email.
 
 Best regards,
-Barangay 11 Team
+{settings.BARANGAY_NAME} Team
 """
     
     send_mail(
@@ -183,6 +184,9 @@ def login_view(request):
             login(request, user)
             log_audit(user, 'login', 'Resident logged in', request)
             messages.success(request, f'Welcome back {user.first_name}!')
+            next_url = request.POST.get('next') or request.GET.get('next')
+            if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+                return redirect(next_url)
             return redirect('home')
         else:
             messages.error(request, 'Invalid email or password')

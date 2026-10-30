@@ -1,0 +1,11 @@
+{# Live update badge. Needs live_url. #}
+<div data-live-url="{{ live_url }}" data-live-every="{{ STATUS_POLL_SECONDS }}" class="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+    <span class="relative flex h-2.5 w-2.5">
+        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+    </span>
+    <span data-live-label>Live updates on</span>
+</div>
+<div data-live-flash class="hidden mt-3 p-3 rounded-lg bg-green-100 text-green-700 text-sm">
+    <i class="fas fa-bell mr-2"></i>The status of this complaint was just updated.
+</div>

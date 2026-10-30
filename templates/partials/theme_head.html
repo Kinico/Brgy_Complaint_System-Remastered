@@ -1,0 +1,124 @@
+{# Shared theme: sans serif headings, dark mode and the theme toggle. Include it at the end of <head>. #}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+<script>
+    /* Apply the saved theme before the page paints, so there is no white flash */
+    (function () {
+        var theme = null;
+        try { theme = localStorage.getItem('brgy-theme'); } catch (e) {}
+        if (!theme) {
+            theme = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+        }
+        if (theme === 'dark') { document.documentElement.classList.add('dark'); }
+        if (window.Chart && theme === 'dark') {
+            Chart.defaults.color = '#cbd5e1';
+            Chart.defaults.borderColor = 'rgba(148, 163, 184, 0.2)';
+        }
+    })();
+</script>
+<style>
+    * { font-family: 'Inter', system-ui, sans-serif; }
+    .font-display, h1, h2 { font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif; letter-spacing: -0.01em; }
+
+    .theme-toggle {
+        width: 2.5rem; height: 2.5rem; border-radius: 9999px;
+        display: inline-flex; align-items: center; justify-content: center;
+        color: #4b5563; transition: background 0.2s, color 0.2s;
+    }
+    .theme-toggle:hover { background: #f3f4f6; color: #f97316; }
+    .theme-toggle-floating {
+        position: fixed; right: 1rem; bottom: 1rem; z-index: 60;
+        background: #ffffff; box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    }
+    .theme-toggle .icon-sun { display: none; }
+    html.dark .theme-toggle .icon-sun { display: inline; }
+    html.dark .theme-toggle .icon-moon { display: none; }
+
+    /* Dark mode */
+    html.dark { color-scheme: dark; }
+    html.dark body { background: #0b1220 !important; color: #e2e8f0; }
+    html.dark .bg-white { background-color: #1e293b !important; }
+    html.dark .bg-gray-50 { background-color: #162032 !important; }
+    html.dark .bg-gray-100 { background-color: #243044 !important; }
+    html.dark .bg-gray-200 { background-color: #334155 !important; }
+    html.dark .bg-gray-800, html.dark footer { background-color: #020617 !important; }
+    html.dark .text-gray-900, html.dark .text-gray-800 { color: #f1f5f9 !important; }
+    html.dark .text-gray-700 { color: #e2e8f0 !important; }
+    html.dark .text-gray-600 { color: #cbd5e1 !important; }
+    html.dark .text-gray-500 { color: #94a3b8 !important; }
+    html.dark .text-gray-400 { color: #7c8aa0 !important; }
+    html.dark .border, html.dark .border-t, html.dark .border-b, html.dark .border-gray-100,
+    html.dark .border-gray-200, html.dark .border-gray-300, html.dark hr { border-color: #334155 !important; }
+    html.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+    html.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: #334155 !important; }
+    html.dark .shadow, html.dark .shadow-md, html.dark .shadow-lg, html.dark .shadow-xl { box-shadow: 0 10px 25px rgba(0,0,0,0.45) !important; }
+    html.dark input:not([type=checkbox]):not([type=radio]):not([type=submit]),
+    html.dark select, html.dark textarea {
+        background-color: #0f172a !important; color: #e2e8f0 !important; border-color: #334155 !important;
+    }
+    html.dark input::placeholder, html.dark textarea::placeholder { color: #64748b !important; }
+    html.dark input[type=file] { color: #cbd5e1 !important; }
+    html.dark .dropdown-menu { background: #1e293b !important; }
+    html.dark .hover\:bg-gray-50:hover, html.dark .hover\:bg-gray-100:hover { background-color: #2b3a52 !important; }
+    html.dark .hover\:bg-orange-50:hover { background-color: rgba(249, 115, 22, 0.15) !important; }
+    html.dark .hover\:text-gray-800:hover { color: #f8fafc !important; }
+    html.dark .bg-orange-50, html.dark .bg-orange-100 { background-color: rgba(249, 115, 22, 0.16) !important; }
+    html.dark .bg-green-50, html.dark .bg-green-100 { background-color: rgba(34, 197, 94, 0.16) !important; }
+    html.dark .bg-red-50, html.dark .bg-red-100 { background-color: rgba(239, 68, 68, 0.16) !important; }
+    html.dark .bg-yellow-50, html.dark .bg-yellow-100 { background-color: rgba(234, 179, 8, 0.16) !important; }
+    html.dark .bg-blue-50, html.dark .bg-blue-100 { background-color: rgba(59, 130, 246, 0.16) !important; }
+    html.dark .bg-purple-50, html.dark .bg-purple-100, html.dark .bg-indigo-100 { background-color: rgba(139, 92, 246, 0.18) !important; }
+    html.dark .text-green-700, html.dark .text-green-600 { color: #86efac !important; }
+    html.dark .text-red-700, html.dark .text-red-600 { color: #fca5a5 !important; }
+    html.dark .text-yellow-700, html.dark .text-yellow-600 { color: #fde047 !important; }
+    html.dark .text-blue-700, html.dark .text-blue-600 { color: #93c5fd !important; }
+    html.dark .text-purple-700, html.dark .text-purple-600 { color: #c4b5fd !important; }
+    html.dark .border-green-200 { border-color: rgba(34, 197, 94, 0.4) !important; }
+    html.dark .border-red-200 { border-color: rgba(239, 68, 68, 0.4) !important; }
+    html.dark .border-yellow-200 { border-color: rgba(234, 179, 8, 0.4) !important; }
+    html.dark .status-pending { background: rgba(234, 179, 8, 0.2) !important; color: #fde047 !important; }
+    html.dark .status-under_review { background: rgba(59, 130, 246, 0.2) !important; color: #93c5fd !important; }
+    html.dark .status-in_progress { background: rgba(99, 102, 241, 0.22) !important; color: #c7d2fe !important; }
+    html.dark .status-resolved { background: rgba(34, 197, 94, 0.2) !important; color: #86efac !important; }
+    html.dark .status-rejected { background: rgba(239, 68, 68, 0.2) !important; color: #fca5a5 !important; }
+    /* Badges sitting on a colored header keep their light colors so they stay readable */
+    html.dark .status-solid.status-pending { background: #fef3c7 !important; color: #b45309 !important; }
+    html.dark .status-solid.status-under_review { background: #dbeafe !important; color: #1e40af !important; }
+    html.dark .status-solid.status-in_progress { background: #e0e7ff !important; color: #3730a3 !important; }
+    html.dark .status-solid.status-resolved { background: #d1fae5 !important; color: #065f46 !important; }
+    html.dark .status-solid.status-rejected { background: #fee2e2 !important; color: #991b1b !important; }
+    input.uppercase::placeholder { text-transform: none; letter-spacing: normal; }
+    html.dark .theme-toggle { color: #cbd5e1; }
+    html.dark .theme-toggle:hover { background: #243044; color: #fdba74; }
+    html.dark .theme-toggle-floating { background: #1e293b; }
+    html.dark table thead { background-color: #162032 !important; }
+    html.dark .text-gray-300 { color: #475569 !important; }
+</style>
+<script>
+    /* Theme toggle: any element with data-theme-toggle switches light and dark.
+       Pages without one get a small floating button in the corner. */
+    document.addEventListener('DOMContentLoaded', function () {
+        function setTheme(theme) {
+            document.documentElement.classList.toggle('dark', theme === 'dark');
+            try { localStorage.setItem('brgy-theme', theme); } catch (e) {}
+        }
+        var toggles = document.querySelectorAll('[data-theme-toggle]');
+        if (!toggles.length) {
+            var floating = document.createElement('button');
+            floating.type = 'button';
+            floating.className = 'theme-toggle theme-toggle-floating';
+            floating.setAttribute('data-theme-toggle', '');
+            floating.setAttribute('aria-label', 'Switch light or dark mode');
+            floating.setAttribute('title', 'Light or dark mode');
+            floating.innerHTML = '<i class="fas fa-moon icon-moon"></i><i class="fas fa-sun icon-sun"></i>';
+            document.body.appendChild(floating);
+            toggles = [floating];
+        }
+        Array.prototype.forEach.call(toggles, function (button) {
+            button.addEventListener('click', function () {
+                setTheme(document.documentElement.classList.contains('dark') ? 'light' : 'dark');
+            });
+        });
+    });
+</script>

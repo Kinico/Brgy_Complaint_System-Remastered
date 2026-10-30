@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+
+{% block title %}Guide - {{ BARANGAY_NAME }} Complaint System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-12 max-w-4xl">
+    <div class="text-center mb-10">
+        <div class="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-book-open text-orange-500 text-2xl"></i>
+        </div>
+        <h1 class="text-3xl md:text-4xl font-display font-bold text-gray-800">How to Use the System</h1>
+        <p class="text-gray-500 mt-2">A quick guide for first time users of the {{ BARANGAY_NAME }} Complaint System.</p>
+    </div>
+
+    <!-- Steps -->
+    <div class="space-y-5">
+        <div class="bg-white rounded-2xl shadow-md p-6 flex gap-5">
+            <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-orange-500 text-white flex items-center justify-center">
+                <i class="fas fa-user-plus text-lg"></i>
+            </div>
+            <div>
+                <h2 class="text-xl font-bold text-gray-800 mb-1">Step 1: Create your account</h2>
+                <p class="text-gray-600">Click <strong>Register</strong> and fill in your name, email and password. We send a 6 digit code to your email. Enter it to verify your account, then log in.</p>
+                <p class="text-sm text-gray-500 mt-2"><i class="fas fa-info-circle mr-1"></i>Did not get the code? Check your spam folder, or use the resend button on the verification page. The code expires after 10 minutes.</p>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-md p-6 flex gap-5">
+            <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-orange-500 text-white flex items-center justify-center">
+                <i class="fas fa-file-alt text-lg"></i>
+            </div>
+            <div>
+                <h2 class="text-xl font-bold text-gray-800 mb-1">Step 2: File your complaint</h2>
+                <p class="text-gray-600">Go to <strong>File Complaint</strong>. Choose a category, write what happened, give the exact location, and attach a photo if you have one.</p>
+                <ul class="text-sm text-gray-500 mt-2 space-y-1">
+                    <li><i class="fas fa-check text-green-500 mr-2"></i>Say what the problem is and when it started.</li>
+                    <li><i class="fas fa-check text-green-500 mr-2"></i>Give a street, block or landmark so staff can find it.</li>
+                    <li><i class="fas fa-check text-green-500 mr-2"></i>A clear photo helps the barangay act faster.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-md p-6 flex gap-5">
+            <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-orange-500 text-white flex items-center justify-center">
+                <i class="fas fa-ticket-alt text-lg"></i>
+            </div>
+            <div>
+                <h2 class="text-xl font-bold text-gray-800 mb-1">Step 3: Keep your tracking code</h2>
+                <p class="text-gray-600">After you submit, you get an 8 character tracking code, like <span class="font-mono bg-gray-100 px-2 py-0.5 rounded">ABC12345</span>. We also email you a confirmation that the barangay received your complaint.</p>
+                <p class="text-sm text-gray-500 mt-2"><i class="fas fa-info-circle mr-1"></i>If you have an account, all your complaints are listed in <strong>My Complaints</strong>, so you will not lose them.</p>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-md p-6 flex gap-5">
+            <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-orange-500 text-white flex items-center justify-center">
+                <i class="fas fa-bell text-lg"></i>
+            </div>
+            <div>
+                <h2 class="text-xl font-bold text-gray-800 mb-1">Step 4: Follow the progress</h2>
+                <p class="text-gray-600">Type your code in the track box on the home page, or open the complaint from My Complaints. The status updates on its own while the page is open, and you get an email whenever it changes.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status meanings -->
+    <div class="bg-white rounded-2xl shadow-md p-6 mt-8">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">What each status means</h2>
+        <div class="grid sm:grid-cols-2 gap-4">
+            <div class="flex gap-3 items-start">
+                <span class="status-pending text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap">Pending</span>
+                <p class="text-sm text-gray-600">Received and waiting for barangay staff to review it.</p>
+            </div>
+            <div class="flex gap-3 items-start">
+                <span class="status-under_review text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap">Under Review</span>
+                <p class="text-sm text-gray-600">Staff are checking the details, location and photo.</p>
+            </div>
+            <div class="flex gap-3 items-start">
+                <span class="status-in_progress text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap">In Progress</span>
+                <p class="text-sm text-gray-600">Accepted, and the barangay is acting on it.</p>
+            </div>
+            <div class="flex gap-3 items-start">
+                <span class="status-resolved text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap">Resolved</span>
+                <p class="text-sm text-gray-600">Done. The barangay's notes appear on the tracking page.</p>
+            </div>
+            <div class="flex gap-3 items-start">
+                <span class="status-rejected text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap">Rejected</span>
+                <p class="text-sm text-gray-600">The barangay could not act on it. The reason appears on the tracking page.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Anonymous -->
+    <div class="bg-white rounded-2xl shadow-md p-6 mt-8 flex gap-5">
+        <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-gray-600 text-white flex items-center justify-center">
+            <i class="fas fa-user-secret text-lg"></i>
+        </div>
+        <div>
+            <h2 class="text-xl font-bold text-gray-800 mb-1">Filing without an account</h2>
+            <p class="text-gray-600">You can also file an <a href="{% url 'anonymous_complaint' %}" class="text-orange-500 hover:underline">anonymous complaint</a>. Your name is not attached, but there is no email update and no My Complaints list, so the tracking code is the only way to check it. Save it right away.</p>
+        </div>
+    </div>
+
+    <div class="flex flex-col sm:flex-row gap-3 justify-center mt-10">
+        <a href="{% url 'submit_complaint' %}" class="px-6 py-3 bg-orange-500 text-white rounded-xl font-semibold text-center hover:bg-orange-600 transition">
+            <i class="fas fa-file-alt mr-2"></i>File a Complaint
+        </a>
+        <a href="{% url 'track_complaint' %}" class="px-6 py-3 border border-orange-500 text-orange-500 rounded-xl font-semibold text-center hover:bg-orange-50 transition">
+            <i class="fas fa-search mr-2"></i>Track a Complaint
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -5,11 +5,13 @@
 
 {% block content %}
 <div class="container mx-auto px-4 py-12 max-w-4xl">
-    <!-- Back Button -->
-    <div class="mb-6">
-        <button onclick="window.history.back()" class="text-gray-600 hover:text-gray-800">
-            <i class="fas fa-arrow-left mr-2"></i>Back
-        </button>
+    <!-- Back Button and live status -->
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <a href="{% url 'my_complaints' %}" class="text-gray-600 hover:text-gray-800">
+            <i class="fas fa-arrow-left mr-2"></i>My Complaints
+        </a>
+        {% url 'complaint_status_api' complaint.tracking_code as live_url %}
+        {% include 'partials/live_indicator.html' with live_url=live_url %}
     </div>
     
     <!-- Complaint Card -->
@@ -21,13 +23,24 @@
                     <h1 class="text-2xl font-bold text-white">Complaint Details</h1>
                     <p class="text-orange-100 mt-1">Tracking Code: <span class="font-mono font-bold">{{ complaint.tracking_code }}</span></p>
                 </div>
-                <span class="status-{{ complaint.status }} px-4 py-2 rounded-full text-sm font-semibold">
+                <span class="status-{{ complaint.status }} status-solid px-4 py-2 rounded-full text-sm font-semibold">
                     {{ complaint.get_status_display }}
                 </span>
             </div>
         </div>
         
         <div class="p-6">
+            <!-- Received confirmation -->
+            <div class="flex items-start gap-3 p-4 rounded-lg bg-green-50 border border-green-200 mb-6">
+                <i class="fas fa-inbox text-green-600 mt-0.5"></i>
+                <p class="text-sm text-gray-700">
+                    <strong>Received by {{ BARANGAY_NAME }}</strong> on {{ complaint.created_at|date:"F d, Y" }} at {{ complaint.created_at|date:"h:i A" }}.
+                    {% if complaint.status_updated_by %}Last handled by barangay staff on {{ complaint.updated_at|date:"F d, Y h:i A" }}.{% endif %}
+                </p>
+            </div>
+
+            {% include 'partials/status_steps.html' %}
+
             <!-- Complainant Info -->
             <div class="mb-6">
                 <h2 class="text-lg font-semibold text-gray-800 mb-3">Complainant Information</h2>
@@ -113,7 +126,7 @@
                                 <p class="text-xs text-gray-400">{{ history.created_at|date:"M d, Y h:i A" }}</p>
                             </div>
                             {% if history.changed_by %}
-                            <p class="text-xs text-gray-400 mt-1">Updated by: {{ history.changed_by.get_full_name|default:history.changed_by.username }}</p>
+                            <p class="text-xs text-gray-400 mt-1">Updated by: {{ history.changed_by.get_full_name|default:history.changed_by.email }}</p>
                             {% endif %}
                         </div>
                     </div>
@@ -138,11 +151,11 @@
                         <span class="font-semibold">Complaint Rejected</span>
                         {% endif %}
                     </div>
-                    <p class="text-sm text-gray-600">Updated on: {{ complaint.resolved_at|date:"F d, Y h:i A" }}</p>
+                    <p class="text-sm text-gray-600">Updated on: {{ complaint.resolved_at|default:complaint.updated_at|date:"F d, Y h:i A" }}</p>
                     {% if complaint.resolution_feedback %}
                     <div class="mt-3 p-3 bg-white rounded-lg">
                         <p class="text-sm font-medium text-gray-700 mb-1">
-                            {% if complaint.status == 'resolved' %}📋 Resolution Notes:{% else %}❌ Reason for Rejection:{% endif %}
+                            {% if complaint.status == 'resolved' %}Resolution Notes:{% else %}Reason for Rejection:{% endif %}
                         </p>
                         <p class="text-sm text-gray-600">{{ complaint.resolution_feedback }}</p>
                     </div>

@@ -127,7 +127,7 @@ def send_sms(phone_number, message):
         
         # Send email to gateway
         send_mail(
-            subject='Barangay 11 Notification',
+            subject=f'{settings.BARANGAY_NAME} Notification',
             message=message,
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[gateway_email],
@@ -144,7 +144,7 @@ def send_verification_code(phone_number, code):
     Send verification code SMS
     """
     message = f"""
-Barangay 11 Verification Code: {code}
+{settings.BARANGAY_NAME} Verification Code: {code}
 
 This code expires in 10 minutes.
 Do not share this code with anyone.

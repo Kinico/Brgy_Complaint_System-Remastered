@@ -7,6 +7,10 @@ urlpatterns = [
     path('success/<str:tracking_code>/', views.complaint_success, name='complaint_success'),
     path('track/', views.track_complaint, name='track_complaint'),
     path('my-complaints/', views.my_complaints, name='my_complaints'),
+    path('my-complaints/status/', views.my_complaints_status_api, name='my_complaints_status_api'),
+    path('track/<str:tracking_code>/status/', views.complaint_status_api, name='complaint_status_api'),
+    path('guide/', views.user_guide, name='user_guide'),
+    path('api/check-spam/', views.check_spam_api, name='check_spam_api'),
     
     # Admin URLs
     path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),

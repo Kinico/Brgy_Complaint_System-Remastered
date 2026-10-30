@@ -1,25 +1,41 @@
 {% extends 'base.html' %}
 
-{% block title %}My Complaints - Barangay System{% endblock %}
+{% block title %}My Complaints - {{ BARANGAY_NAME }}{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-12 max-w-5xl">
-    <div class="flex justify-between items-center mb-8">
-        <h1 class="text-3xl font-display font-bold text-gray-800">My Complaints</h1>
-        <a href="{% url 'submit_complaint' %}" class="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition">
+    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+        <div>
+            <h1 class="text-3xl font-display font-bold text-gray-800">My Complaints</h1>
+            {% if complaints %}
+            <div class="mt-2">
+                {% url 'my_complaints_status_api' as live_url %}
+                {% include 'partials/live_indicator.html' with live_url=live_url %}
+            </div>
+            {% endif %}
+        </div>
+        <a href="{% url 'submit_complaint' %}" class="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition text-center">
             <i class="fas fa-plus mr-2"></i>New Complaint
         </a>
     </div>
-    
+
+    <!-- Quick track -->
+    <form action="{% url 'track_complaint' %}" method="GET" class="bg-white rounded-xl shadow-md p-4 mb-8 flex flex-col sm:flex-row gap-3 sm:items-center">
+        <label for="dashTrack" class="text-sm font-medium text-gray-700 sm:w-48"><i class="fas fa-search text-orange-500 mr-2"></i>Quick track by code</label>
+        <input id="dashTrack" name="code" type="text" required maxlength="8" autocomplete="off" placeholder="e.g. ABC12345"
+               class="flex-1 px-4 py-2 border border-gray-300 rounded-lg uppercase font-mono tracking-wider focus:outline-none focus:ring-2 focus:ring-orange-500">
+        <button type="submit" class="px-5 py-2 bg-orange-500 text-white rounded-lg font-semibold hover:bg-orange-600 transition">Track</button>
+    </form>
+
     {% if complaints %}
         <div class="space-y-4">
             {% for complaint in complaints %}
             <div class="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
-                        <div class="flex items-center gap-3 mb-2">
+                        <div class="flex flex-wrap items-center gap-2 mb-2">
                             <span class="font-mono text-sm bg-gray-100 px-3 py-1 rounded-full">{{ complaint.tracking_code }}</span>
-                            <span class="status-{{ complaint.status }} text-xs px-3 py-1 rounded-full">
+                            <span class="status-{{ complaint.status }} text-xs px-3 py-1 rounded-full font-semibold">
                                 {{ complaint.get_status_display }}
                             </span>
                             {% if complaint.is_spam %}
@@ -30,9 +46,12 @@
                         </div>
                         <h3 class="text-lg font-semibold">{{ complaint.category.name|default:"Complaint" }}</h3>
                         <p class="text-gray-500 text-sm mt-1">{{ complaint.description|truncatechars:100 }}</p>
-                        <p class="text-gray-400 text-xs mt-2">{{ complaint.created_at|date:"M d, Y" }}</p>
+                        <p class="text-gray-400 text-xs mt-2">
+                            Filed {{ complaint.created_at|date:"M d, Y" }}
+                            {% if complaint.updated_at|date:"YmdHi" != complaint.created_at|date:"YmdHi" %} &middot; Last update {{ complaint.updated_at|date:"M d, Y h:i A" }}{% endif %}
+                        </p>
                     </div>
-                    <a href="{% url 'track_complaint' %}?code={{ complaint.tracking_code }}" class="text-orange-500 hover:text-orange-600 font-medium">
+                    <a href="{% url 'track_complaint' %}?code={{ complaint.tracking_code }}" class="text-orange-500 hover:text-orange-600 font-medium whitespace-nowrap">
                         View Details <i class="fas fa-arrow-right ml-1"></i>
                     </a>
                 </div>
@@ -43,7 +62,11 @@
         <div class="bg-white rounded-xl shadow-md p-12 text-center">
             <i class="fas fa-inbox text-5xl text-gray-300 mb-4"></i>
             <p class="text-gray-500">You haven't filed any complaints yet.</p>
-            <a href="{% url 'submit_complaint' %}" class="inline-block mt-4 text-orange-500 hover:underline">File your first complaint</a>
+            <div class="mt-4 flex flex-col sm:flex-row gap-3 justify-center">
+                <a href="{% url 'submit_complaint' %}" class="text-orange-500 hover:underline">File your first complaint</a>
+                <span class="hidden sm:inline text-gray-300">|</span>
+                <a href="{% url 'user_guide' %}" class="text-orange-500 hover:underline">See how it works</a>
+            </div>
         </div>
     {% endif %}
 </div>

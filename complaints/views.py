@@ -5,13 +5,16 @@ from django.db.models import Q, Count, Avg
 from django.utils import timezone
 from datetime import datetime, timedelta
 from django.core.paginator import Paginator
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
+from django.urls import reverse
+from urllib.parse import quote
 import json
 from .models import Complaint, Category, ComplaintStatusHistory, AnonymousComplaint
 from .forms import ComplaintForm, AnonymousComplaintForm
 from accounts.models import AuditLog
 from accounts.views import log_audit, get_client_ip
 from ml_spam.ml_models import spam_ml
+from .notifications import notify_complaint_received, notify_status_changed, STATUS_MEANING
 
 
 def home(request):
@@ -98,6 +101,9 @@ def submit_complaint(request):
             
             log_audit(request.user, 'create_complaint', f'Created complaint {complaint.tracking_code}', request)
             
+            if notify_complaint_received(complaint, request):
+                request.session['confirmation_email_sent'] = complaint.tracking_code
+            
             if is_spam:
                 messages.warning(request, f'⚠️ Complaint flagged for review. Code: {complaint.tracking_code}')
             else:
@@ -112,44 +118,127 @@ def submit_complaint(request):
 
 def complaint_success(request, tracking_code):
     complaint = get_object_or_404(Complaint, tracking_code=tracking_code)
-    return render(request, 'complaints/complaint_success.html', {'complaint': complaint})
+    email_sent = request.session.pop('confirmation_email_sent', None) == complaint.tracking_code
+    return render(request, 'complaints/complaint_success.html', {
+        'complaint': complaint,
+        'email_sent': email_sent,
+    })
+
+
+STATUS_STEPS = [
+    ('pending', 'Received'),
+    ('under_review', 'Under Review'),
+    ('in_progress', 'In Progress'),
+    ('resolved', 'Resolved'),
+]
+
+
+def _status_steps(status):
+    """Progress steps for the tracking page, marking which ones are done."""
+    order = [key for key, _ in STATUS_STEPS]
+    current = order.index(status) if status in order else -1
+    steps = []
+    for index, (key, label) in enumerate(STATUS_STEPS):
+        steps.append({
+            'key': key,
+            'label': label,
+            'done': status != 'rejected' and index <= current,
+            'current': index == current,
+        })
+    return steps
+
+
+def check_spam_api(request):
+    """Used by the complaint forms to warn the user while typing."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST only'}, status=405)
+    try:
+        text = json.loads(request.body or '{}').get('text', '')
+    except ValueError:
+        return JsonResponse({'error': 'invalid request'}, status=400)
+    is_spam, confidence = spam_ml.predict(str(text)[:5000])
+    return JsonResponse({'is_spam': is_spam, 'confidence': confidence})
+
+
+def user_guide(request):
+    """Step by step guide for first time users."""
+    return render(request, 'complaints/user_guide.html')
 
 
 def track_complaint(request):
-    if request.method == 'GET':
-        code = request.GET.get('code', '').upper().strip()
-        if code:
-            try:
-                complaint = Complaint.objects.get(tracking_code=code)
-                if request.user.is_authenticated and (complaint.submitted_by == request.user or request.user.is_admin()):
-                    return render(request, 'complaints/track_result.html', {'complaint': complaint})
-                elif request.user.is_authenticated:
-                    messages.error(request, 'You can only view your own complaints.')
-                else:
-                    messages.error(request, 'Please login to view complaint details.')
-            except Complaint.DoesNotExist:
-                messages.error(request, 'No complaint found with that code.')
-    
+    """One tracking box for both registered and anonymous complaints.
+
+    Form posts are redirected to ?code=... so the result page can be
+    refreshed (and auto updated) without the browser asking to resubmit.
+    """
     if request.method == 'POST':
         code = request.POST.get('tracking_code', '').upper().strip()
         if code:
-            try:
-                complaint = Complaint.objects.get(tracking_code=code)
-                if request.user.is_authenticated and (complaint.submitted_by == request.user or request.user.is_admin()):
-                    return render(request, 'complaints/track_result.html', {'complaint': complaint})
-                elif request.user.is_authenticated:
-                    messages.error(request, 'You can only track your own complaints.')
-                else:
-                    messages.error(request, 'Please login to track complaints.')
-            except Complaint.DoesNotExist:
-                messages.error(request, 'No complaint found with that tracking code.')
-    
-    return render(request, 'complaints/track_complaint.html')
+            return redirect(f"{reverse('track_complaint')}?code={code}")
+        messages.error(request, 'Please enter a tracking code.')
+        return redirect('track_complaint')
+
+    code = request.GET.get('code', '').upper().strip()
+    if code:
+        complaint = Complaint.objects.filter(tracking_code=code).first()
+        if complaint:
+            if request.user.is_authenticated and (complaint.submitted_by == request.user or request.user.is_admin()):
+                return render(request, 'complaints/track_result.html', {
+                    'complaint': complaint,
+                    'steps': _status_steps(complaint.status),
+                    'status_meaning': STATUS_MEANING.get(complaint.status, ''),
+                })
+            elif request.user.is_authenticated:
+                messages.error(request, 'You can only view your own complaints.')
+            else:
+                messages.error(request, 'Please log in to view this complaint. It was filed with an account.')
+                next_url = quote(f"{reverse('track_complaint')}?code={code}")
+                return redirect(f"{reverse('login')}?next={next_url}")
+        elif AnonymousComplaint.objects.filter(tracking_code=code).exists():
+            return redirect('anonymous_track_result', tracking_code=code)
+        else:
+            messages.error(request, 'No complaint found with that tracking code. Please check the code and try again.')
+
+    return render(request, 'complaints/track_complaint.html', {'code': code})
+
+
+def complaint_status_api(request, tracking_code):
+    """Small JSON endpoint the tracking pages check every few seconds."""
+    code = tracking_code.upper().strip()
+    complaint = Complaint.objects.filter(tracking_code=code).first()
+    if complaint:
+        allowed = request.user.is_authenticated and (
+            complaint.submitted_by_id == request.user.id or request.user.is_admin()
+        )
+        if not allowed:
+            return JsonResponse({'error': 'not allowed'}, status=403)
+        history_count = complaint.status_history.count()
+    else:
+        complaint = AnonymousComplaint.objects.filter(tracking_code=code).first()
+        if not complaint:
+            return JsonResponse({'error': 'not found'}, status=404)
+        history_count = 0
+
+    return JsonResponse({
+        'status': complaint.status,
+        'status_display': complaint.get_status_display(),
+        'version': f"{complaint.status}|{complaint.updated_at.isoformat()}|{history_count}",
+    })
+
+
+@login_required
+def my_complaints_status_api(request):
+    """Lets the My Complaints page notice status changes without a manual refresh."""
+    rows = Complaint.objects.filter(submitted_by=request.user).order_by('id').values_list(
+        'tracking_code', 'status', 'updated_at'
+    )
+    version = ';'.join(f"{code}:{status}:{updated.isoformat()}" for code, status, updated in rows)
+    return JsonResponse({'version': version})
 
 
 @login_required
 def my_complaints(request):
-    complaints = Complaint.objects.filter(submitted_by=request.user).order_by('-created_at')
+    complaints = Complaint.objects.filter(submitted_by=request.user).select_related('category').order_by('-created_at')
     return render(request, 'complaints/my_complaints.html', {'complaints': complaints})
 
 
@@ -246,6 +335,10 @@ def update_status(request, complaint_id):
         new_status = request.POST.get('status')
         feedback = request.POST.get('feedback', '')
         
+        if new_status not in dict(Complaint.STATUS_CHOICES):
+            messages.error(request, 'Please choose a valid status.')
+            return redirect(request.META.get('HTTP_REFERER', 'admin_dashboard'))
+        
         old_status = complaint.status
         complaint.status = new_status
         complaint.status_updated_by = request.user
@@ -266,6 +359,9 @@ def update_status(request, complaint_id):
         
         log_audit(request.user, 'update_status', 
                  f'Changed {complaint.tracking_code} from {old_status} to {new_status}', request)
+        
+        if old_status != new_status:
+            notify_status_changed(complaint, request, feedback if new_status in ['resolved', 'rejected'] else '')
         
         if feedback and new_status in ['resolved', 'rejected']:
             messages.success(request, f'Status updated to {new_status} with feedback added.')
@@ -336,6 +432,14 @@ def review_spam(request):
             complaint.reviewed_by_admin = True
             complaint.status = 'rejected'
             complaint.save()
+            if complaint_type == 'regular':
+                ComplaintStatusHistory.objects.create(
+                    complaint=complaint,
+                    status='rejected',
+                    changed_by=request.user,
+                    notes='Rejected after spam review'
+                )
+                notify_status_changed(complaint, request, 'Rejected after spam review')
             messages.success(request, f'Spam complaint {complaint.tracking_code} rejected')
             log_audit(request.user, 'review_spam', f'Rejected {complaint.tracking_code}', request)
         
@@ -523,6 +627,7 @@ def flag_as_spam(request, complaint_id):
         
         log_audit(request.user, 'update_status', 
                  f'Manually flagged {complaint.tracking_code} as spam', request)
+        notify_status_changed(complaint, request, 'Flagged as spam by admin')
         messages.success(request, f'Complaint {complaint.tracking_code} has been flagged as spam.')
     
     return redirect(request.META.get('HTTP_REFERER', 'admin_dashboard'))
@@ -578,18 +683,20 @@ def anonymous_success(request, tracking_code):
 def track_anonymous(request):
     if request.method == 'POST':
         tracking_code = request.POST.get('tracking_code', '').upper().strip()
-        try:
-            complaint = AnonymousComplaint.objects.get(tracking_code=tracking_code)
-            return render(request, 'complaints/anonymous_track_result.html', {'complaint': complaint})
-        except AnonymousComplaint.DoesNotExist:
-            messages.error(request, 'No complaint found with that tracking code.')
+        if AnonymousComplaint.objects.filter(tracking_code=tracking_code).exists():
+            return redirect('anonymous_track_result', tracking_code=tracking_code)
+        messages.error(request, 'No complaint found with that tracking code.')
     
     return render(request, 'complaints/anonymous_track.html')
 
 
 def anonymous_track_result(request, tracking_code):
-    complaint = get_object_or_404(AnonymousComplaint, tracking_code=tracking_code)
-    return render(request, 'complaints/anonymous_track_result.html', {'complaint': complaint})
+    complaint = get_object_or_404(AnonymousComplaint, tracking_code=tracking_code.upper())
+    return render(request, 'complaints/anonymous_track_result.html', {
+        'complaint': complaint,
+        'steps': _status_steps(complaint.status),
+        'status_meaning': STATUS_MEANING.get(complaint.status, ''),
+    })
 
 
 @login_required

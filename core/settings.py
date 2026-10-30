@@ -63,6 +63,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'complaints.context_processors.barangay',
             ],
         },
     },
@@ -123,7 +124,13 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', f'Barangay 10 <{EMAIL_HOST_USER}>')
+# One place for the barangay name shown across the whole system
+BARANGAY_NAME = os.getenv('BARANGAY_NAME', 'Barangay 10')
+
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', f'{BARANGAY_NAME} <{EMAIL_HOST_USER}>')
+
+# How often (in seconds) open tracking pages check for status changes
+STATUS_POLL_SECONDS = 15
 
 if not DEBUG:
     SECURE_SSL_REDIRECT = False

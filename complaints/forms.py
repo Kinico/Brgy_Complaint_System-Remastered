@@ -1,5 +1,6 @@
 from django import forms
 from .models import Complaint, Category, AnonymousComplaint
+from .image_utils import compress_image
 
 
 class ComplaintForm(forms.ModelForm):
@@ -13,7 +14,7 @@ class ComplaintForm(forms.ModelForm):
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500'
             }),
             'location': forms.TextInput(attrs={
-                'placeholder': 'e.g., Block 5, Lot 12, Barangay 11',
+                'placeholder': 'e.g., Block 5, Lot 12, Barangay 10',
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500'
             }),
             'category': forms.Select(attrs={
@@ -25,6 +26,9 @@ class ComplaintForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['category'].queryset = Category.objects.all()
         self.fields['category'].empty_label = "Select a category"
+
+    def clean_image(self):
+        return compress_image(self.cleaned_data.get('image'))
 
 
 class AnonymousComplaintForm(forms.ModelForm):
@@ -38,7 +42,7 @@ class AnonymousComplaintForm(forms.ModelForm):
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500'
             }),
             'location': forms.TextInput(attrs={
-                'placeholder': 'e.g., Block 5, Lot 12, Barangay 11',
+                'placeholder': 'e.g., Block 5, Lot 12, Barangay 10',
                 'class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500'
             }),
             'category': forms.Select(attrs={
@@ -50,3 +54,6 @@ class AnonymousComplaintForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['category'].queryset = Category.objects.all()
         self.fields['category'].empty_label = "Select a category"
+
+    def clean_image(self):
+        return compress_image(self.cleaned_data.get('image'))

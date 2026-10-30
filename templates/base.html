@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Barangay Complaint System{% endblock %}</title>
+    <title>{% block title %}{{ BARANGAY_NAME }} Complaint System{% endblock %}</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -11,19 +11,10 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700;800&display=swap" rel="stylesheet">
-    
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
-        * {
-            font-family: 'Inter', sans-serif;
-        }
-        .font-display {
-            font-family: 'Playfair Display', serif;
-        }
         .hero-gradient {
             background: linear-gradient(135deg, #f97316, #c2410c);
         }
@@ -74,6 +65,7 @@
             background: transparent;
         }
     </style>
+    {% include 'partials/theme_head.html' %}
     {% block extra_css %}{% endblock %}
 </head>
 <body class="bg-gray-50">
@@ -85,13 +77,17 @@
                 <div class="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
                     <i class="fas fa-landmark text-white text-lg"></i>
                 </div>
-                <span class="font-display font-bold text-xl text-gray-800">Barangay 10</span>
+                <span class="font-display font-bold text-xl text-gray-800">{{ BARANGAY_NAME }}</span>
             </a>
             
             <div class="hidden md:flex items-center gap-6">
                 <a href="{% url 'home' %}" class="text-gray-600 hover:text-orange-500 transition">Home</a>
                 <a href="{% url 'submit_complaint' %}" class="text-gray-600 hover:text-orange-500 transition">File Complaint</a>
                 <a href="{% url 'track_complaint' %}" class="text-gray-600 hover:text-orange-500 transition">Track Complaint</a>
+                <a href="{% url 'user_guide' %}" class="text-gray-600 hover:text-orange-500 transition">Guide</a>
+                <button type="button" class="theme-toggle" data-theme-toggle aria-label="Switch light or dark mode" title="Light or dark mode">
+                    <i class="fas fa-moon icon-moon"></i><i class="fas fa-sun icon-sun"></i>
+                </button>
                 
                 {% if user.is_authenticated %}
                     <!-- Logged in users -->
@@ -132,9 +128,14 @@
             </div>
             
             <!-- Mobile Menu Button -->
-            <button id="mobileMenuBtn" class="md:hidden text-gray-600">
-                <i class="fas fa-bars text-2xl"></i>
-            </button>
+            <div class="md:hidden flex items-center gap-2">
+                <button type="button" class="theme-toggle" data-theme-toggle aria-label="Switch light or dark mode" title="Light or dark mode">
+                    <i class="fas fa-moon icon-moon"></i><i class="fas fa-sun icon-sun"></i>
+                </button>
+                <button id="mobileMenuBtn" class="text-gray-600" aria-label="Open menu">
+                    <i class="fas fa-bars text-2xl"></i>
+                </button>
+            </div>
         </div>
         
         <!-- Mobile Menu -->
@@ -143,6 +144,7 @@
                 <a href="{% url 'home' %}" class="text-gray-600 hover:text-orange-500 py-2">Home</a>
                 <a href="{% url 'submit_complaint' %}" class="text-gray-600 hover:text-orange-500 py-2">File Complaint</a>
                 <a href="{% url 'track_complaint' %}" class="text-gray-600 hover:text-orange-500 py-2">Track Complaint</a>
+                <a href="{% url 'user_guide' %}" class="text-gray-600 hover:text-orange-500 py-2">Guide</a>
                 
                 {% if user.is_authenticated %}
                     {% if user.is_admin %}
@@ -177,7 +179,7 @@
     <!-- Footer -->
     <footer class="bg-gray-800 text-white mt-16">
         <div class="container mx-auto px-4 py-8 text-center">
-            <p>&copy; 2024 Barangay 10 Complaint Management System. All rights reserved.</p>
+            <p>&copy; {% now 'Y' %} {{ BARANGAY_NAME }} Complaint Management System. All rights reserved.</p>
         </div>
     </footer>
 
@@ -186,6 +188,85 @@
         document.getElementById('mobileMenuBtn')?.addEventListener('click', function() {
             const menu = document.getElementById('mobileMenu');
             menu.classList.toggle('hidden');
+        });
+    </script>
+    <script>
+        /* Live status updates.
+           A page that contains an element with data-live-url checks that URL every few
+           seconds. When the complaint status changes, the page refreshes by itself. */
+        (function () {
+            var box = document.querySelector('[data-live-url]');
+            if (!box) { return; }
+            var url = box.getAttribute('data-live-url');
+            var every = (parseInt(box.getAttribute('data-live-every'), 10) || 15) * 1000;
+            var label = box.querySelector('[data-live-label]');
+            var version = null;
+            var timer = null;
+
+            try {
+                if (sessionStorage.getItem('brgy-live-updated') === url) {
+                    sessionStorage.removeItem('brgy-live-updated');
+                    var flash = document.querySelector('[data-live-flash]');
+                    if (flash) { flash.classList.remove('hidden'); }
+                }
+            } catch (e) {}
+
+            function timeNow() {
+                return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            }
+            function schedule() {
+                clearTimeout(timer);
+                if (!document.hidden) { timer = setTimeout(check, every); }
+            }
+            function check() {
+                fetch(url, { headers: { 'Accept': 'application/json' }, cache: 'no-store', credentials: 'same-origin' })
+                    .then(function (response) {
+                        if (!response.ok) { throw new Error('status ' + response.status); }
+                        return response.json();
+                    })
+                    .then(function (data) {
+                        if (version === null) {
+                            version = data.version;
+                        } else if (data.version !== version) {
+                            if (label) {
+                                label.textContent = 'Status updated' + (data.status_display ? ' to ' + data.status_display : '') + ', refreshing...';
+                            }
+                            try { sessionStorage.setItem('brgy-live-updated', url); } catch (e) {}
+                            setTimeout(function () { window.location.reload(); }, 1200);
+                            return;
+                        }
+                        if (label) { label.textContent = 'Live updates on, last checked ' + timeNow(); }
+                        schedule();
+                    })
+                    .catch(function () {
+                        if (label) { label.textContent = 'Reconnecting...'; }
+                        schedule();
+                    });
+            }
+            document.addEventListener('visibilitychange', function () {
+                if (document.hidden) { clearTimeout(timer); } else { check(); }
+            });
+            check();
+        })();
+
+        /* Copy buttons: <button data-copy="text"> */
+        document.querySelectorAll('[data-copy]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                var text = button.getAttribute('data-copy');
+                var done = function () {
+                    var original = button.innerHTML;
+                    button.innerHTML = '<i class="fas fa-check mr-1"></i>Copied';
+                    setTimeout(function () { button.innerHTML = original; }, 1500);
+                };
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(text).then(done);
+                } else {
+                    var area = document.createElement('textarea');
+                    area.value = text; document.body.appendChild(area); area.select();
+                    try { document.execCommand('copy'); done(); } catch (e) {}
+                    document.body.removeChild(area);
+                }
+            });
         });
     </script>
     {% block extra_js %}{% endblock %}

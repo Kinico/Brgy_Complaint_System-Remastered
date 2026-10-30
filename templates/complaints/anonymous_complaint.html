@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}File Anonymous Complaint - Barangay 11{% endblock %}
+{% block title %}File Anonymous Complaint - {{ BARANGAY_NAME }}{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-12 max-w-2xl">
@@ -56,46 +56,35 @@
 </div>
 
 <script>
-    // Live spam detection
-    const descriptionField = document.querySelector('#id_description');
-    const spamIndicator = document.getElementById('spamIndicator');
-    
-    if (descriptionField) {
-        descriptionField.addEventListener('input', function() {
+    /* Live spam hint: checks the text once the user stops typing for a moment. */
+    (function () {
+        const descriptionField = document.querySelector('#id_description');
+        const spamIndicator = document.getElementById('spamIndicator');
+        if (!descriptionField || !spamIndicator) { return; }
+        let timer = null;
+
+        function show(isSpam) {
+            spamIndicator.innerHTML = isSpam
+                ? '<div class="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded"><i class="fas fa-exclamation-triangle mr-2"></i>This looks like it might be spam. You can still submit, and barangay staff will review it.</div>'
+                : '<div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded"><i class="fas fa-check-circle mr-2"></i>Your complaint looks good.</div>';
+            spamIndicator.classList.remove('hidden');
+        }
+
+        descriptionField.addEventListener('input', function () {
+            clearTimeout(timer);
             const text = this.value;
-            if (text.length > 10) {
-                fetch('/api/check-spam/', {
+            if (text.length <= 10) { spamIndicator.classList.add('hidden'); return; }
+            timer = setTimeout(function () {
+                fetch('{% url "check_spam_api" %}', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': '{{ csrf_token }}'
-                    },
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
                     body: JSON.stringify({ text: text })
                 })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.is_spam) {
-                        spamIndicator.innerHTML = `
-                            <div class="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
-                                <i class="fas fa-exclamation-triangle mr-2"></i>
-                                ⚠️ This complaint looks like spam. It will be reviewed by an admin.
-                            </div>
-                        `;
-                        spamIndicator.classList.remove('hidden');
-                    } else {
-                        spamIndicator.innerHTML = `
-                            <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
-                                <i class="fas fa-check-circle mr-2"></i>
-                                ✅ Your complaint looks legitimate.
-                            </div>
-                        `;
-                        spamIndicator.classList.remove('hidden');
-                    }
-                });
-            } else {
-                spamIndicator.classList.add('hidden');
-            }
+                    .then(function (response) { return response.ok ? response.json() : null; })
+                    .then(function (data) { if (data) { show(data.is_spam); } })
+                    .catch(function () {});
+            }, 600);
         });
-    }
+    })();
 </script>
 {% endblock %}
