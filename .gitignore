@@ -19,3 +19,4 @@ staticfiles/
 .DS_Store
 Thumbs.db
 data.json
+test_results.json

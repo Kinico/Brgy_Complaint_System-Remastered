@@ -247,8 +247,7 @@
                                 <tr><th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Code</th><th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Complainant</th><th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Category</th><th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Description</th><th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th><th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th><th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th></tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100">
-                                {% for complaint in complaints %}
-                                {% if complaint.status != 'resolved' and complaint.status != 'rejected' %}
+                                {% for complaint in active_complaints %}
                                 <tr class="hover:bg-gray-50 transition duration-150">
                                     <td class="px-4 py-3"><span class="font-mono text-sm font-semibold text-gray-800">{{ complaint.tracking_code }}</span>{% if complaint.is_spam %}<span class="ml-2 inline-flex items-center gap-1 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full"><i class="fas fa-shield-alt text-xs"></i><span>Spam</span></span>{% endif %}</td>
                                     <td class="px-4 py-3">{{ complaint.submitted_by.first_name }} {{ complaint.submitted_by.last_name }}</td>
@@ -282,13 +281,18 @@
                                         </div>
                                     </td>
                                 </tr>
-                                {% endif %}
                                 {% empty %}
                                 <tr><td colspan="7" class="px-4 py-12 text-center text-gray-500">No active complaints found.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
+                    {% if active_total > 50 %}
+                    <div class="px-6 py-3 bg-gray-50 border-t text-sm text-gray-500 flex justify-between items-center flex-wrap gap-2">
+                        <span>Showing the 50 newest of {{ active_total }} active complaints.</span>
+                        <a href="{% url 'pending_complaints' %}" class="text-orange-600 font-medium hover:underline">View all active complaints</a>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>

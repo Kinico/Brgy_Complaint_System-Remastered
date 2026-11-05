@@ -294,25 +294,35 @@ def admin_dashboard(request):
         if count > 0:
             category_data.append({'name': cat.name, 'count': count})
     
+    # Last 6 calendar months, oldest first (counting back by month, not by 30 days,
+    # so no month is skipped or repeated)
     monthly_data = []
-    for i in range(5, -1, -1):
-        date = timezone.now().date() - timedelta(days=30*i)
-        count = complaints.filter(
-            created_at__year=date.year,
-            created_at__month=date.month
-        ).count()
+    today = timezone.localdate(timezone.now())
+    year, month = today.year, today.month
+    months = []
+    for _ in range(6):
+        months.insert(0, (year, month))
+        month -= 1
+        if month == 0:
+            year, month = year - 1, 12
+    for year, month in months:
+        count = complaints.filter(created_at__year=year, created_at__month=month).count()
         monthly_data.append({
-            'month': date.strftime('%b'),
+            'month': datetime(year, month, 1).strftime('%b'),
             'count': count
         })
     
     pending_complaints_count = Complaint.objects.filter(
-        is_spam=False,
-        reviewed_by_admin=True
+        is_spam=False
     ).exclude(status__in=['resolved', 'rejected']).count()
+    
+    # The table shows the 50 newest active complaints; the full list is on the Pending page
+    active = complaints.exclude(status__in=['resolved', 'rejected']).select_related('submitted_by', 'category')
     
     context = {
         'complaints': complaints,
+        'active_complaints': active[:50],
+        'active_total': active.count(),
         'anonymous_complaints': anonymous_complaints,
         'stats': stats,
         'total': total,
@@ -508,7 +518,7 @@ def resolved_complaints(request):
         complaints = complaints.filter(resolved_at__date__gte=start_date)
     
     total_resolved = complaints.count()
-    resolved_this_month = complaints.filter(resolved_at__month=today.month).count()
+    resolved_this_month = complaints.filter(resolved_at__year=today.year, resolved_at__month=today.month).count()
     
     avg_seconds = 0
     for complaint in complaints:
@@ -550,10 +560,10 @@ def resolved_complaints(request):
 @login_required
 @user_passes_test(lambda u: u.is_admin())
 def pending_complaints(request):
+    # Every active complaint that is not spam, whether or not it went through spam review
     complaints = Complaint.objects.filter(
         is_spam=False,
-        reviewed_by_admin=True
-    ).exclude(
+    ).select_related('submitted_by', 'category').exclude(
         status__in=['resolved', 'rejected']
     ).order_by('-created_at')
     
@@ -925,7 +935,7 @@ def export_complaints_pdf(request):
     
     table_data = [['Tracking', 'Complainant', 'Category', 'Status', 'Feedback', 'Date']]
     
-    for complaint in complaints[:20]:
+    for complaint in complaints.select_related('submitted_by', 'category'):
         feedback = complaint.resolution_feedback or ''
         if len(feedback) > 50:
             feedback = feedback[:47] + '...'
