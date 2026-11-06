@@ -19,6 +19,14 @@
         </a>
     </div>
 
+    {% if not user.can_file_complaints %}
+    <div class="mb-6 p-4 rounded-lg border {% if user.residency_status == 'rejected' %}bg-red-50 border-red-200 text-red-700{% else %}bg-yellow-50 border-yellow-200 text-yellow-800{% endif %} text-sm">
+        <i class="fas fa-id-card mr-2"></i>
+        {% if user.residency_status == 'rejected' %}Your valid ID was not accepted{% if user.residency_note %}: {{ user.residency_note }}{% endif %}. Please visit the barangay hall.
+        {% else %}Barangay staff are still checking your valid ID. You can file complaints once your account is verified.{% endif %}
+    </div>
+    {% endif %}
+
     <!-- Quick track -->
     <form action="{% url 'track_complaint' %}" method="GET" class="bg-white rounded-xl shadow-md p-4 mb-8 flex flex-col sm:flex-row gap-3 sm:items-center">
         <label for="dashTrack" class="text-sm font-medium text-gray-700 sm:w-48"><i class="fas fa-search text-orange-500 mr-2"></i>Quick track by code</label>
@@ -38,11 +46,6 @@
                             <span class="status-{{ complaint.status }} text-xs px-3 py-1 rounded-full font-semibold">
                                 {{ complaint.get_status_display }}
                             </span>
-                            {% if complaint.is_spam %}
-                            <span class="bg-red-100 text-red-700 text-xs px-3 py-1 rounded-full">
-                                <i class="fas fa-shield-alt mr-1"></i>Flagged as Spam
-                            </span>
-                            {% endif %}
                         </div>
                         <h3 class="text-lg font-semibold">{{ complaint.category.name|default:"Complaint" }}</h3>
                         <p class="text-gray-500 text-sm mt-1">{{ complaint.description|truncatechars:100 }}</p>

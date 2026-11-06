@@ -45,18 +45,26 @@ def _track_link(request, tracking_code):
     return request.build_absolute_uri(path) if request else path
 
 
+def _recipient(complaint):
+    """Walk-in complaints without a resident account have no email to notify."""
+    email = complaint.complainant_email
+    first_name = complaint.complainant_display.split(' ')[0] if complaint.complainant_display else ''
+    return email, first_name
+
+
 def notify_complaint_received(complaint, request=None):
     """Confirmation email right after a resident files a complaint."""
-    user = complaint.submitted_by
+    email, first_name = _recipient(complaint)
     name = settings.BARANGAY_NAME
     subject = f'{name}: We received your complaint ({complaint.tracking_code})'
     body = (
-        f'Hello {user.first_name},\n\n'
+        f'Hello {first_name},\n\n'
         f'{name} has received your complaint.\n\n'
         f'Tracking code: {complaint.tracking_code}\n'
         f'Category: {complaint.category.name if complaint.category else "Uncategorized"}\n'
         f'Location: {complaint.location}\n'
-        f'Received on: {complaint.created_at:%B %d, %Y %I:%M %p}\n\n'
+        f'Received on: {complaint.created_at:%B %d, %Y %I:%M %p}\n'
+        f'Expected action: within {complaint.estimated_days} days, by {complaint.expected_by:%B %d, %Y}\n\n'
         'What happens next:\n'
         '1. Barangay staff review your complaint.\n'
         '2. If it is valid, it is marked In Progress while the barangay acts on it.\n'
@@ -65,25 +73,49 @@ def notify_complaint_received(complaint, request=None):
         f'Track your complaint anytime: {_track_link(request, complaint.tracking_code)}\n\n'
         f'Thank you,\n{name}'
     )
-    return _send_in_background(subject, body, user.email)
+    return _send_in_background(subject, body, email)
 
 
 def notify_status_changed(complaint, request=None, notes=''):
     """Email the resident whenever an admin changes the complaint status."""
-    user = complaint.submitted_by
+    email, first_name = _recipient(complaint)
     name = settings.BARANGAY_NAME
     status = complaint.get_status_display()
     subject = f'{name}: Your complaint {complaint.tracking_code} is now {status}'
     body = (
-        f'Hello {user.first_name},\n\n'
+        f'Hello {first_name},\n\n'
         f'The status of your complaint {complaint.tracking_code} was updated.\n\n'
         f'New status: {status}\n'
         f'{STATUS_MEANING.get(complaint.status, "")}\n'
     )
+    if complaint.status == 'rejected' and complaint.rejection_reason:
+        body += f'\nReason: {complaint.get_rejection_reason_display()}\n'
     if notes:
         body += f'\nNotes from the barangay: {notes}\n'
+    if complaint.status in ('resolved', 'rejected'):
+        body += '\nPlease tell us if you are satisfied with how your complaint was handled. Open the link below and answer the short feedback form.\n'
     body += (
         f'\nSee the full details: {_track_link(request, complaint.tracking_code)}\n\n'
         f'Thank you,\n{name}'
     )
+    return _send_in_background(subject, body, email)
+
+
+def notify_residency_reviewed(user, request=None):
+    """Tell a resident whether their valid ID was accepted."""
+    name = settings.BARANGAY_NAME
+    if user.residency_status == 'approved':
+        subject = f'{name}: Your account is verified'
+        body = (f'Hello {user.first_name},\n\n'
+                f'Barangay staff checked your valid ID and verified you as a resident of {name}. '
+                'You can now file complaints using your account.\n\n')
+    else:
+        subject = f'{name}: We could not verify your account'
+        body = (f'Hello {user.first_name},\n\n'
+                'Barangay staff could not verify your account from the ID you uploaded.\n')
+        if user.residency_note:
+            body += f'Reason: {user.residency_note}\n'
+        body += ('\nYou may upload a clearer ID, or visit the barangay hall with a valid ID so staff can file the complaint for you as a walk-in.\n\n')
+    login_link = request.build_absolute_uri(reverse('login')) if request else reverse('login')
+    body += f'Log in: {login_link}\n\nThank you,\n{name}'
     return _send_in_background(subject, body, user.email)

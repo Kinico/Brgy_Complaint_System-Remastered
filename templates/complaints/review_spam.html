@@ -47,7 +47,7 @@
                     <div class="grid grid-cols-2 gap-4 mb-4">
                         <div>
                             <p class="text-gray-500 text-sm">Complainant</p>
-                            <p class="font-semibold">{{ complaint.submitted_by.get_full_name|default:complaint.submitted_by.username }}</p>
+                            <p class="font-semibold">{{ complaint.complainant_display }}</p>
                         </div>
                         <div>
                             <p class="text-gray-500 text-sm">Category</p>

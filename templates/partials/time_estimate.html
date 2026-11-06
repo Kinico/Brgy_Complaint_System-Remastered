@@ -1,0 +1,16 @@
+{% if complaint.status == 'resolved' or complaint.status == 'rejected' %}
+    {% if complaint.response_days is not None %}
+    <div class="flex items-start gap-3 p-4 rounded-lg bg-gray-50 border border-gray-200 mb-6">
+        <i class="fas fa-stopwatch text-gray-500 mt-0.5"></i>
+        <p class="text-sm text-gray-700">The barangay {% if complaint.status == 'resolved' %}resolved{% else %}responded to{% endif %} this complaint in <strong>{{ complaint.response_days }} day{{ complaint.response_days|pluralize }}</strong>. The usual time for {{ complaint.category.name|default:"this kind of complaint" }} is {{ complaint.estimated_days }} day{{ complaint.estimated_days|pluralize }}.</p>
+    </div>
+    {% endif %}
+{% else %}
+    <div class="flex items-start gap-3 p-4 rounded-lg {% if complaint.is_overdue %}bg-red-50 border-red-200{% else %}bg-blue-50 border-blue-200{% endif %} border mb-6">
+        <i class="fas fa-calendar-check {% if complaint.is_overdue %}text-red-500{% else %}text-blue-500{% endif %} mt-0.5"></i>
+        <p class="text-sm text-gray-700">
+            <strong>Estimated time:</strong> the barangay usually acts on {{ complaint.category.name|default:"this kind of complaint"|lower }} complaints within <strong>{{ complaint.estimated_days }} day{{ complaint.estimated_days|pluralize }}</strong>, so expect action by <strong>{{ complaint.expected_by|date:"F d, Y" }}</strong>.
+            {% if complaint.is_overdue %}{% if staff_view %}This complaint is past the usual time for its category.{% else %}This is past the usual time; you may follow up at the barangay hall using your tracking code.{% endif %}{% endif %}
+        </p>
+    </div>
+{% endif %}

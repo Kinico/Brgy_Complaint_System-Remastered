@@ -1,0 +1,165 @@
+{# Layout for every barangay staff page: dark sidebar on the left, top bar, and the page content. #}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Admin{% endblock %} - {{ BARANGAY_NAME }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .status-pending { background: #fef3c7; color: #b45309; }
+        .status-under_review { background: #dbeafe; color: #1e40af; }
+        .status-in_progress { background: #e0e7ff; color: #3730a3; }
+        .status-resolved { background: #d1fae5; color: #065f46; }
+        .status-rejected { background: #fee2e2; color: #991b1b; }
+        .card-hover { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 12px 24px -8px rgba(15, 23, 42, 0.18); }
+        .stat-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 12px 24px -8px rgba(15, 23, 42, 0.18); }
+
+        /* Sidebar stays dark in both themes */
+        .side { background: #0f172a; }
+        .side-link { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0.85rem; border-radius: 0.6rem;
+                     color: #cbd5e1; font-size: 0.9rem; font-weight: 500; transition: background 0.15s, color 0.15s; }
+        .side-link i.lead { width: 1.1rem; text-align: center; color: #94a3b8; transition: color 0.15s; }
+        .side-link:hover { background: rgba(148, 163, 184, 0.12); color: #fff; }
+        .side-link:hover i.lead { color: #fdba74; }
+        .side-link.active { background: linear-gradient(90deg, rgba(249, 115, 22, 0.22), rgba(249, 115, 22, 0.06)); color: #fff;
+                            box-shadow: inset 3px 0 0 #f97316; }
+        .side-link.active i.lead { color: #fb923c; }
+        .side-badge { margin-left: auto; min-width: 1.4rem; padding: 0 0.4rem; height: 1.25rem; border-radius: 9999px;
+                      font-size: 0.7rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+        .side-label { padding: 1.1rem 0.85rem 0.4rem; font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase;
+                      color: #64748b; font-weight: 700; }
+        .side-scroll::-webkit-scrollbar { width: 6px; }
+        .side-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
+        html.dark .topbar { background: rgba(15, 23, 42, 0.85) !important; }
+    </style>
+    {% include 'partials/theme_head.html' %}
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-gray-100 text-gray-800">
+{% with here=request.resolver_match.url_name %}
+<div class="min-h-screen lg:flex">
+
+    <!-- Sidebar -->
+    <div id="sideOverlay" class="fixed inset-0 bg-black/50 z-40 hidden lg:hidden"></div>
+    <aside id="sidebar" class="side fixed inset-y-0 left-0 z-50 w-64 flex flex-col -translate-x-full lg:translate-x-0 transition-transform duration-200">
+        <a href="{% url 'admin_dashboard' %}" class="flex items-center gap-3 px-5 h-16 border-b border-white/10 shrink-0">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shadow-lg shadow-orange-500/30">
+                <i class="fas fa-landmark text-white"></i>
+            </div>
+            <div class="leading-tight">
+                <p class="font-display font-bold text-white">{{ BARANGAY_NAME }}</p>
+                <p class="text-[11px] text-slate-400">Complaint Management</p>
+            </div>
+        </a>
+
+        <nav class="side-scroll flex-1 overflow-y-auto px-3 pb-4">
+            <p class="side-label">Overview</p>
+            <a href="{% url 'admin_dashboard' %}" class="side-link {% if here == 'admin_dashboard' %}active{% endif %}"><i class="lead fas fa-chart-pie"></i>Dashboard</a>
+            {% if user.is_captain %}
+            <a href="{% url 'captain_dashboard' %}" class="side-link {% if here == 'captain_dashboard' %}active{% endif %}"><i class="lead fas fa-crown"></i>Captain Overview</a>
+            {% endif %}
+
+            <p class="side-label">Complaints</p>
+            <a href="{% url 'pending_complaints' %}" class="side-link {% if here == 'pending_complaints' or here == 'complaint_detail' %}active{% endif %}"><i class="lead fas fa-inbox"></i>Active Complaints
+                {% if nav_active_count %}<span class="side-badge bg-orange-500 text-white">{{ nav_active_count }}</span>{% endif %}</a>
+            <a href="{% url 'walk_in_complaint' %}" class="side-link {% if here == 'walk_in_complaint' %}active{% endif %}"><i class="lead fas fa-person-walking"></i>Walk-in Complaint</a>
+            <a href="{% url 'resolved_complaints' %}" class="side-link {% if here == 'resolved_complaints' %}active{% endif %}"><i class="lead fas fa-circle-check"></i>Resolved</a>
+            <a href="{% url 'rejected_complaints' %}" class="side-link {% if here == 'rejected_complaints' %}active{% endif %}"><i class="lead fas fa-circle-xmark"></i>Rejected</a>
+
+            <p class="side-label">Residents</p>
+            <a href="{% url 'resident_master_list' %}" class="side-link {% if here == 'resident_master_list' %}active{% endif %}"><i class="lead fas fa-address-book"></i>Resident Master List
+                {% if nav_residents_waiting %}<span class="side-badge bg-emerald-500 text-white">{{ nav_residents_waiting }}</span>{% endif %}</a>
+
+            <p class="side-label">Reports</p>
+            <a href="{% url 'export_complaints_pdf' %}" class="side-link"><i class="lead fas fa-file-pdf"></i>Signed PDF Report</a>
+            <a href="{% url 'export_complaints_excel' %}" class="side-link"><i class="lead fas fa-file-excel"></i>Excel Export</a>
+            <a href="{% url 'export_complaints_csv' %}" class="side-link"><i class="lead fas fa-file-csv"></i>CSV Export</a>
+
+            <p class="side-label">Settings</p>
+            <a href="{% url 'manage_categories' %}" class="side-link {% if here == 'manage_categories' %}active{% endif %}"><i class="lead fas fa-tags"></i>Categories</a>
+            {% if user.is_captain %}
+            <a href="{% url 'manage_users' %}" class="side-link {% if here == 'manage_users' or here == 'create_admin' %}active{% endif %}"><i class="lead fas fa-users-gear"></i>Users and Roles</a>
+            <a href="{% url 'audit_log' %}" class="side-link {% if here == 'audit_log' %}active{% endif %}"><i class="lead fas fa-clipboard-list"></i>Audit Log</a>
+            {% endif %}
+        </nav>
+
+        <div class="px-3 py-3 border-t border-white/10 shrink-0">
+            <a href="{% url 'home' %}" class="side-link"><i class="lead fas fa-globe"></i>View Public Site</a>
+            <a href="{% url 'logout' %}" class="side-link hover:!text-red-300"><i class="lead fas fa-right-from-bracket"></i>Log Out</a>
+        </div>
+    </aside>
+
+    <!-- Main column -->
+    <div class="flex-1 min-w-0 lg:ml-64 flex flex-col min-h-screen">
+        <header class="topbar sticky top-0 z-30 bg-white/85 backdrop-blur border-b border-gray-200">
+            <div class="h-16 px-4 sm:px-6 lg:px-8 flex items-center gap-3">
+                <button id="sideOpen" type="button" class="lg:hidden w-10 h-10 rounded-lg hover:bg-gray-100 text-gray-600" aria-label="Open menu"><i class="fas fa-bars"></i></button>
+                <div class="min-w-0">
+                    <p class="text-xs text-gray-400 hidden sm:block">{% block crumb %}Admin{% endblock %}</p>
+                    <p class="font-display font-bold text-gray-800 truncate">{% block page_title %}Admin Panel{% endblock %}</p>
+                </div>
+                <div class="ml-auto flex items-center gap-2">
+                    <button type="button" class="theme-toggle" data-theme-toggle aria-label="Switch light or dark mode" title="Light or dark mode">
+                        <i class="fas fa-moon icon-moon"></i><i class="fas fa-sun icon-sun"></i>
+                    </button>
+                    <div class="flex items-center gap-3 pl-3 border-l border-gray-200">
+                        <div class="w-9 h-9 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 text-white font-bold flex items-center justify-center text-sm">
+                            {{ user.first_name|slice:":1"|upper }}{{ user.last_name|slice:":1"|upper }}
+                        </div>
+                        <div class="hidden sm:block leading-tight">
+                            <p class="text-sm font-semibold text-gray-800">{{ user.first_name }} {{ user.last_name }}</p>
+                            <p class="text-xs text-gray-500">{% if user.is_captain %}Barangay Captain{% else %}Barangay Staff{% endif %}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        {% if messages %}
+        <div class="px-4 sm:px-6 lg:px-8 pt-5 space-y-2">
+            {% for message in messages %}
+            <div class="flex items-start gap-3 p-4 rounded-xl border {% if message.tags == 'error' %}bg-red-50 border-red-200 text-red-700{% elif message.tags == 'success' %}bg-green-50 border-green-200 text-green-700{% elif message.tags == 'warning' %}bg-yellow-50 border-yellow-200 text-yellow-800{% else %}bg-blue-50 border-blue-200 text-blue-700{% endif %}">
+                <i class="fas {% if message.tags == 'error' %}fa-circle-exclamation{% elif message.tags == 'success' %}fa-circle-check{% else %}fa-circle-info{% endif %} mt-0.5"></i>
+                <span>{{ message }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <main class="flex-1">
+            {% block content %}{% endblock %}
+        </main>
+
+        <div class="px-8 py-5 text-xs text-gray-400 border-t border-gray-200">
+            &copy; {% now 'Y' %} {{ BARANGAY_NAME }} Complaint Management System
+        </div>
+    </div>
+</div>
+{% endwith %}
+
+<script>
+    (function () {
+        var side = document.getElementById('sidebar'), overlay = document.getElementById('sideOverlay');
+        function open() { side.classList.remove('-translate-x-full'); overlay.classList.remove('hidden'); }
+        function close() { side.classList.add('-translate-x-full'); overlay.classList.add('hidden'); }
+        document.getElementById('sideOpen').addEventListener('click', open);
+        overlay.addEventListener('click', close);
+    })();
+    /* Copy buttons: <button data-copy="text"> */
+    document.querySelectorAll('[data-copy]').forEach(function (button) {
+        button.addEventListener('click', function () {
+            var text = button.getAttribute('data-copy');
+            var original = button.innerHTML;
+            var done = function () { button.innerHTML = '<i class="fas fa-check mr-1"></i>Copied'; setTimeout(function () { button.innerHTML = original; }, 1500); };
+            if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(text).then(done); }
+        });
+    });
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

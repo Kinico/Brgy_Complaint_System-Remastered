@@ -23,16 +23,21 @@ from unittest import mock
 
 from django.conf import settings
 from django.core import mail
+import shutil
+import tempfile
+
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
 from accounts.models import AuditLog, User
-from complaints.models import AnonymousComplaint, Category, Complaint, ComplaintStatusHistory
-from ml_spam.ml_models import spam_ml
+from complaints.models import Category, Complaint, ComplaintStatusHistory
 
 RESULTS = []
+TEST_MEDIA = tempfile.mkdtemp(prefix='brgy_test_media_')
 LOCMEM = dict(
+    MEDIA_ROOT=TEST_MEDIA,
     EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
     EMAIL_HOST_USER='system.test@example.com',
     EMAIL_HOST_PASSWORD='test-only',
@@ -63,16 +68,33 @@ def wait_for_mail(count, timeout=2.0):
     return len(mail.outbox) >= count
 
 
-def make_user(email, role='resident', verified=True):
+def make_user(email, role='resident', verified=True, residency='approved'):
     user = User.objects.create_user(email=email, password=PASSWORD, first_name=email.split('@')[0].title(),
                                     last_name='Tester', role=role)
     user.is_verified = verified
     user.is_active = verified
+    user.residency_status = residency
     user.save()
     return user
 
 
+def sample_id_photo(name='id.png'):
+    from PIL import Image
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    buffer = io.BytesIO()
+    Image.new('RGB', (320, 200), (40, 90, 160)).save(buffer, format='PNG')
+    return SimpleUploadedFile(name, buffer.getvalue(), content_type='image/png')
+
+
+def registration_data(email):
+    return {'email': email, 'first_name': 'Juan', 'last_name': 'Dela Cruz',
+            'birth_date': '1990-05-14', 'address': '123 Rizal Street, Barangay 10, Caloocan City',
+            'contact_number': '09171234567', 'valid_id_type': 'national_id', 'valid_id': sample_id_photo(),
+            'password1': PASSWORD, 'password2': PASSWORD}
+
+
 def tearDownModule():
+    shutil.rmtree(TEST_MEDIA, ignore_errors=True)
     path = os.path.join(settings.BASE_DIR, 'test_results.json')
     with open(path, 'w', encoding='utf-8') as handle:
         json.dump(sorted(RESULTS, key=lambda r: int(r['id'].split('-')[1])), handle, indent=2)
@@ -128,9 +150,7 @@ class FunctionalTests(TestCase):
         self.assertTrue(ok)
 
     def test_03_registration_with_email_verification(self):
-        response = self.client.post(reverse('register'), {
-            'email': 'newresident@example.com', 'first_name': 'Juan', 'last_name': 'Dela Cruz',
-            'password1': PASSWORD, 'password2': PASSWORD})
+        response = self.client.post(reverse('register'), registration_data('newresident@example.com'))
         user = User.objects.filter(email='newresident@example.com').first()
         sent = user is not None and len(mail.outbox) == 1 and user.verification_code in mail.outbox[0].body
         blocked = Client().post(reverse('login'), {'username': 'newresident@example.com', 'password': PASSWORD})
@@ -154,34 +174,33 @@ class FunctionalTests(TestCase):
                'Nothing saved, required field messages shown' if ok else 'Validation missing', ok)
         self.assertTrue(ok)
 
-    def test_05_anonymous_filing(self):
-        response = self.client.post(reverse('anonymous_complaint'), {
-            'category': self.category.id, 'location': 'Main road near the chapel',
-            'description': 'Streetlight has been broken for a week, the area is very dark at night.'})
-        complaint = AnonymousComplaint.objects.first()
-        ok = response.status_code == 302 and complaint is not None and len(complaint.tracking_code) == 8
-        record('TC-05', 'SOP 2', 'Functional Suitability', 'Anonymous complaint without an account',
-               'Saved with a tracking code, no account needed',
-               f'Saved with code {complaint.tracking_code}' if complaint else 'Not saved', ok)
+    def test_05_account_required_to_file(self):
+        before = Complaint.objects.count()
+        data = {'category': self.category.id, 'location': 'Main road near the chapel',
+                'description': 'Streetlight has been broken for a week, the area is very dark at night.'}
+        visitor = Client().post(reverse('submit_complaint'), data)
+        old_link = Client().get('/anonymous/')
+        ok = (visitor.status_code == 302 and 'login' in visitor['Location'] and old_link.status_code == 404
+              and Complaint.objects.count() == before)
+        record('TC-05', 'SOP 2', 'Security', 'Complaints can only be filed with a resident account',
+               'Visitor without an account is sent to log in, nothing saved, no anonymous form',
+               'Visitor redirected to login, nothing saved, old anonymous link returns 404' if ok else 'Filing without an account was possible', ok)
         self.assertTrue(ok)
 
     def test_06_tracking_by_code(self):
         complaint = Complaint.objects.create(submitted_by=self.resident, category=self.category,
                                              description='Uncollected garbage for three days', location='Street 7')
-        anon = AnonymousComplaint.objects.create(category=self.category, description='Stray dogs biting people',
-                                                 location='Corner of Street 2')
         self.client.force_login(self.resident)
         own, ms = timed(lambda: self.client.get(reverse('track_complaint'), {'code': complaint.tracking_code.lower()}))
-        anon_resp = Client().get(reverse('track_complaint'), {'code': anon.tracking_code}, follow=True)
+        visitor = Client().get(reverse('track_complaint'), {'code': complaint.tracking_code})
         wrong = self.client.get(reverse('track_complaint'), {'code': 'ZZZZ9999'})
         ok = (own.status_code == 200 and complaint.tracking_code in own.content.decode()
-              and anon.tracking_code in anon_resp.content.decode()
+              and visitor.status_code == 302 and 'login' in visitor['Location']
               and 'No complaint found' in wrong.content.decode())
-        record('TC-06', 'SOP 2', 'Functional Suitability', 'Track account and anonymous complaints by code',
-               'Correct complaint shown, wrong code gives a clear message',
-               'Both found (code not case sensitive), wrong code shows message' if ok else 'Tracking failed', ok, ms)
+        record('TC-06', 'SOP 2', 'Functional Suitability', 'Track a complaint by its code',
+               'Owner sees the complaint, visitor is asked to log in, wrong code gives a clear message',
+               'Found (code not case sensitive), visitor sent to login, wrong code shows message' if ok else 'Tracking failed', ok, ms)
         self.assertTrue(ok)
-
 
 @override_settings(**LOCMEM)
 class ManagementAndReportTests(TestCase):
@@ -201,12 +220,11 @@ class ManagementAndReportTests(TestCase):
             cls.expected_cat[cat.name] = cls.expected_cat.get(cat.name, 0) + 1
             c = Complaint.objects.create(submitted_by=cls.resident, category=cat, status=status,
                                          description=f'Test complaint number {index} with enough detail',
-                                         location=f'Street {index}', is_spam=(index % 9 == 0))
+                                         location=f'Street {index}')
             if status == 'resolved':
                 Complaint.objects.filter(id=c.id).update(
                     created_at=now - timedelta(hours=10 * (index + 1)), resolved_at=now)
         cls.total = len(statuses)
-        cls.spam = Complaint.objects.filter(is_spam=True).count()
 
     def setUp(self):
         self.client = Client()
@@ -216,7 +234,7 @@ class ManagementAndReportTests(TestCase):
         response, ms = timed(lambda: self.client.get(reverse('admin_dashboard')))
         stats = response.context['stats']
         shown = {s: stats[s] for s in ['pending', 'under_review', 'in_progress', 'resolved', 'rejected']}
-        ok = shown == self.expected and response.context['total'] == self.total and stats['spam'] == self.spam
+        ok = shown == self.expected and response.context['total'] == self.total
         record('TC-07', 'SOP 3', 'Functional Suitability', 'Dashboard status counts match the records',
                f'Total {self.total}, by status {dict(sorted(self.expected.items()))}',
                f'Total {response.context["total"]}, by status {dict(sorted(shown.items()))}', ok, ms)
@@ -256,10 +274,12 @@ class ManagementAndReportTests(TestCase):
         import openpyxl
         response, ms = timed(lambda: self.client.get(reverse('export_complaints_excel')))
         sheet = openpyxl.load_workbook(io.BytesIO(response.content)).active
+        header = [c.value for c in sheet[1]]
+        status_col = header.index('Status')
         rows = list(sheet.iter_rows(min_row=2, values_only=True))
         codes = {r[0] for r in rows}
         db_codes = set(Complaint.objects.values_list('tracking_code', flat=True))
-        statuses_ok = all(r[6] == Complaint.objects.get(tracking_code=r[0]).get_status_display() for r in rows)
+        statuses_ok = all(r[status_col] == Complaint.objects.get(tracking_code=r[0]).get_status_display() for r in rows)
         ok = len(rows) == self.total and codes == db_codes and statuses_ok
         record('TC-10', 'SOP 3', 'Functional Suitability', 'Excel report matches the database',
                f'{self.total} rows, same codes and statuses', f'{len(rows)} rows, codes and statuses match' if ok else f'{len(rows)} rows, mismatch', ok, ms)
@@ -292,7 +312,7 @@ class ManagementAndReportTests(TestCase):
 
     def test_13_average_resolution_time(self):
         response = self.client.get(reverse('resolved_complaints'))
-        resolved = Complaint.objects.filter(status='resolved', is_spam=False)
+        resolved = Complaint.objects.filter(status='resolved')
         manual = sum((c.resolved_at - c.created_at).total_seconds() for c in resolved) / resolved.count() / 3600
         shown = response.context['avg_resolution_hours']
         ok = abs(shown - round(manual, 1)) < 0.11
@@ -300,32 +320,27 @@ class ManagementAndReportTests(TestCase):
                f'{manual:.1f} hours (computed by hand)', f'{shown} hours shown', ok)
         self.assertTrue(ok)
 
-    def test_14_spam_detection(self):
-        legit = [
-            'Our neighbor plays loud videoke every night until 2 in the morning near Street 5.',
-            'The drainage on Phase 2 is clogged and floods the road whenever it rains.',
-            'Garbage has not been collected for three days and it smells very bad.',
-            'A streetlight near the chapel has been broken for a week, the area is dark.',
-            'Stray dogs are chasing children on the way to school along Street 3.',
-            'There is a large pothole on the barangay road that already caused an accident.',
-            'A vacant lot is full of tall grass and mosquitoes, please have it cleaned.',
-            'Someone is burning plastic trash every morning and the smoke enters our house.',
-            'Tricycles are parked on the sidewalk so pedestrians have to walk on the road.',
-            'Water pipe leak in front of house 23 has been flowing for two days.',
-        ]
-        spam = [
-            'test test test', 'asdf qwerty asdf', 'WIN BITCOIN CASINO PRIZE NOW!!!',
-            'Free cash loan, click http://example.com now', 'sample complaint example only',
-            'panalo ka ng premyo, libre pa', 'aaaaaaaaaaaaaaaaaa', 'LOTTERY WINNER CLAIM YOUR MONEY',
-            'pautang mabilis walang collateral, cash agad', 'testing testing 123',
-        ]
-        tp = sum(1 for t in spam if spam_ml.predict(t)[0])
-        fp = sum(1 for t in legit if spam_ml.predict(t)[0])
-        accuracy = (tp + (len(legit) - fp)) / (len(legit) + len(spam)) * 100
-        ok = fp == 0 and tp >= 8
-        record('TC-14', 'SOP 3', 'Security', 'Spam filter on 10 real and 10 spam samples',
-               'No real complaint flagged, at least 8 of 10 spam flagged',
-               f'{tp} of 10 spam flagged, {fp} of 10 real complaints flagged, accuracy {accuracy:.0f}%', ok)
+    def test_14_rejected_id_cannot_file(self):
+        mail.outbox = []
+        user = make_user('fakeid@example.com')
+        User.objects.filter(id=user.id).update(residency_status='pending')
+        no_note = self.client.post(reverse('review_resident', args=[user.id]), {'decision': 'rejected'})
+        user.refresh_from_db()
+        still_pending = user.residency_status == 'pending'
+        self.client.post(reverse('review_resident', args=[user.id]),
+                         {'decision': 'rejected', 'note': 'The ID photo is blurred, please upload a clear copy.'})
+        user.refresh_from_db()
+        emailed = any('blurred' in m.body and m.to == ['fakeid@example.com'] for m in mail.outbox)
+        resident = Client()
+        resident.force_login(user)
+        before = Complaint.objects.count()
+        attempt = resident.post(reverse('submit_complaint'), {'category': self.cats[0].id, 'location': 'Street 1',
+                                                              'description': 'Trying to file with a rejected account.'})
+        ok = (no_note.status_code == 302 and still_pending and user.residency_status == 'rejected' and emailed
+              and attempt.status_code == 403 and Complaint.objects.count() == before)
+        record('TC-14', 'SOP 3', 'Security', 'Resident with a rejected ID cannot file complaints',
+               'Rejecting needs a reason, the resident is emailed the reason, filing is refused',
+               'Reason required, email with reason sent, filing refused (403), nothing saved' if ok else 'Rejected resident could still file', ok)
         self.assertTrue(ok)
 
 
@@ -421,9 +436,12 @@ class CommunicationTests(TestCase):
         self.admin_client = Client()
         self.admin_client.force_login(self.admin)
 
-    def update(self, status, feedback=''):
+    def update(self, status, feedback='', reason='outside_jurisdiction'):
+        data = {'status': status, 'feedback': feedback}
+        if status == 'rejected':
+            data['rejection_reason'] = reason
         return self.admin_client.post(reverse('update_status', args=[self.complaint.id]),
-                                      {'status': status, 'feedback': feedback}, HTTP_REFERER='/admin-dashboard/')
+                                      data, HTTP_REFERER='/admin-dashboard/')
 
     def test_20_status_history_timeline(self):
         for status in ['under_review', 'in_progress']:
@@ -486,7 +504,7 @@ class SecurityTests(TestCase):
 
     def test_24_role_based_access(self):
         admin_pages = ['admin_dashboard', 'pending_complaints', 'resolved_complaints', 'rejected_complaints',
-                       'review_spam', 'manage_categories', 'export_complaints_excel', 'export_complaints_csv',
+                       'resident_master_list', 'manage_categories', 'export_complaints_excel', 'export_complaints_csv',
                        'export_complaints_pdf']
         captain_pages = ['captain_dashboard', 'manage_users', 'audit_log', 'create_admin']
         blocked = []
@@ -584,4 +602,201 @@ class MaintainabilityTests(TestCase):
         ok = 'Barangay 99' in page and 'Barangay 10' not in page
         record('TC-31', 'Maintainability', 'Maintainability', 'Barangay name changed from one setting',
                'Whole site shows the new name', 'All pages use the setting' if ok else 'Name hardcoded somewhere', ok)
+        self.assertTrue(ok)
+
+
+@override_settings(**LOCMEM)
+class PanelRevisionTests(TestCase):
+    """Features added from the panel revisions (Gonzales, Deuna, Cabug)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.noise = Category.objects.create(name='Noise', estimated_days=3,
+                                            recommended_action='Schedule tanod patrols at night.')
+        cls.garbage = Category.objects.create(name='Garbage', estimated_days=5)
+        cls.admin = make_user('admin9@example.com', role='admin')
+        cls.resident = make_user('resident9@example.com')
+
+    def setUp(self):
+        mail.outbox = []
+        self.admin_client = Client()
+        self.admin_client.force_login(self.admin)
+        self.resident_client = Client()
+        self.resident_client.force_login(self.resident)
+
+    def file_complaint(self, client=None, **extra):
+        data = {'category': self.noise.id, 'location': 'Street 4 near the chapel',
+                'description': 'Loud karaoke from the bar on Street 4 every night until 3 in the morning.'}
+        data.update(extra)
+        (client or self.resident_client).post(reverse('submit_complaint'), data)
+        return Complaint.objects.latest('id')
+
+    def test_32_resident_id_verification(self):
+        missing = Client().post(reverse('register'), {
+            'email': 'noid@example.com', 'first_name': 'Ana', 'last_name': 'Santos',
+            'password1': PASSWORD, 'password2': PASSWORD})
+        missing_ok = missing.status_code == 200 and not User.objects.filter(email='noid@example.com').exists()
+        Client().post(reverse('register'), registration_data('withid@example.com'))
+        user = User.objects.get(email='withid@example.com')
+        user.is_verified = user.is_active = True
+        user.save()
+        client = Client()
+        client.force_login(user)
+        before = Complaint.objects.count()
+        blocked = client.post(reverse('submit_complaint'), {'category': self.noise.id, 'location': 'Street 1',
+                                                            'description': 'Dog barking all night beside our house.'})
+        blocked_ok = blocked.status_code == 403 and Complaint.objects.count() == before
+        listed = self.admin_client.get(reverse('resident_master_list'), {'status': 'pending'})
+        id_page = self.admin_client.get(reverse('view_valid_id', args=[user.id]))
+        resident_cannot_see_id = self.resident_client.get(reverse('view_valid_id', args=[user.id])).status_code == 302
+        self.admin_client.post(reverse('review_resident', args=[user.id]), {'decision': 'approved'})
+        user.refresh_from_db()
+        allowed = client.post(reverse('submit_complaint'), {'category': self.noise.id, 'location': 'Street 1',
+                                                            'description': 'Dog barking all night beside our house.'})
+        ok = (missing_ok and user.birth_date is not None and bool(user.valid_id) and blocked_ok
+              and 'withid@example.com' in listed.content.decode() and id_page.status_code == 200
+              and resident_cannot_see_id and user.residency_status == 'approved' and user.residency_reviewed_by == self.admin
+              and allowed.status_code == 302 and Complaint.objects.count() == before + 1)
+        record('TC-32', 'SOP 2', 'Security', 'Registration needs birthday, address and valid ID; staff verify residency',
+               'No ID, no account; unverified resident cannot file; staff verify from the master list, then filing works',
+               'Missing ID rejected, pending resident blocked (403), ID visible to staff only, filing allowed after verification'
+               if ok else 'Verification flow failed', ok)
+        self.assertTrue(ok)
+
+    def test_33_video_and_audio_evidence(self):
+        video = SimpleUploadedFile('noise.mp4', b'\x00\x00\x00\x18ftypmp42' + bytes(2048), content_type='video/mp4')
+        complaint = self.file_complaint(attachment=video)
+        audio = SimpleUploadedFile('noise.m4a', bytes(1024), content_type='audio/mp4')
+        voice = self.file_complaint(attachment=audio, description='Loud motorcycle mufflers every midnight.')
+        before = Complaint.objects.count()
+        bad = SimpleUploadedFile('virus.exe', b'MZ' + bytes(100), content_type='application/octet-stream')
+        rejected = self.resident_client.post(reverse('submit_complaint'), {
+            'category': self.noise.id, 'location': 'Street 4', 'description': 'Testing a file that is not allowed.',
+            'attachment': bad})
+        page = self.resident_client.get(reverse('track_complaint'), {'code': complaint.tracking_code}).content.decode()
+        ok = (complaint.attachment_kind == 'video' and '<video' in page
+              and voice.attachment_kind == 'audio' and voice.id != complaint.id
+              and rejected.status_code == 200 and Complaint.objects.count() == before)
+        record('TC-33', 'SOP 2', 'Functional Suitability', 'Complaints accept video and audio evidence, not other files',
+               'Video and audio saved and playable; other file types refused',
+               'mp4 and m4a saved, video player shown, exe refused with a message' if ok else 'Attachment handling failed', ok)
+        self.assertTrue(ok)
+
+    def test_34_walk_in_complaint(self):
+        response, ms = timed(lambda: self.admin_client.post(reverse('walk_in_complaint'), {
+            'complainant_name': 'Lola Remedios Cruz', 'complainant_contact': '45 Mabini St.',
+            'category': self.garbage.id, 'location': 'Mabini Street corner Rizal',
+            'description': 'Garbage not collected for one week, smell reaches the houses.'}))
+        complaint = Complaint.objects.filter(source='walk_in').first()
+        public = Client().get(reverse('track_complaint'), {'code': complaint.tracking_code}) if complaint else None
+        ok = (response.status_code == 302 and complaint is not None and complaint.complainant_name == 'Lola Remedios Cruz'
+              and complaint.status_history.count() == 1 and public.status_code == 200
+              and 'Lola Remedios Cruz' in public.content.decode()
+              and AuditLog.objects.filter(action='walk_in', user=self.admin).exists())
+        record('TC-34', 'SOP 1', 'Functional Suitability', 'Staff encode a walk-in complaint for a resident without internet',
+               'Saved with a tracking code the complainant can use without an account',
+               f'Saved as {complaint.tracking_code}, trackable without login, logged in audit trail' if ok else 'Walk-in failed', ok, ms)
+        self.assertTrue(ok)
+
+    def test_35_rejection_reason_and_response_days(self):
+        complaint = self.file_complaint()
+        no_reason = self.admin_client.post(reverse('update_status', args=[complaint.id]), {'status': 'rejected'},
+                                           HTTP_REFERER='/admin-dashboard/')
+        complaint.refresh_from_db()
+        still_pending = complaint.status == 'pending'
+        Complaint.objects.filter(id=complaint.id).update(created_at=timezone.now() - timedelta(days=2))
+        self.admin_client.post(reverse('update_status', args=[complaint.id]), {
+            'status': 'rejected', 'rejection_reason': 'outside_jurisdiction',
+            'feedback': 'The bar is in Barangay 11. Please report it there.'}, HTTP_REFERER='/admin-dashboard/')
+        complaint.refresh_from_db()
+        page = self.resident_client.get(reverse('track_complaint'), {'code': complaint.tracking_code}).content.decode()
+        ok = (still_pending and no_reason.status_code == 302 and complaint.status == 'rejected'
+              and complaint.rejection_reason == 'outside_jurisdiction' and complaint.response_days == 2.0
+              and 'Outside Barangay 10 jurisdiction' in page and '2.0 days' in page)
+        record('TC-35', 'SOP 5', 'Functional Suitability', 'Rejection needs a reason; response time in days is shown',
+               'Rejecting without a reason is refused; reason and days shown to the resident',
+               f'Refused without reason; saved with reason, answered in {complaint.response_days} days' if ok else 'Reason or days missing', ok)
+        self.assertTrue(ok)
+
+    def test_36_satisfaction_feedback(self):
+        complaint = self.file_complaint()
+        self.admin_client.post(reverse('update_status', args=[complaint.id]),
+                               {'status': 'resolved', 'feedback': 'Tanod talked to the owner.'}, HTTP_REFERER='/x/')
+        other = make_user('other9@example.com')
+        intruder = Client()
+        intruder.force_login(other)
+        intruder.post(reverse('submit_feedback', args=[complaint.tracking_code]), {'satisfaction': 'not_satisfied'})
+        complaint.refresh_from_db()
+        intruder_blocked = complaint.satisfaction == ''
+        self.resident_client.post(reverse('submit_feedback', args=[complaint.tracking_code]),
+                                  {'satisfaction': 'satisfied', 'satisfaction_comment': 'Quiet now, thank you.'})
+        self.resident_client.post(reverse('submit_feedback', args=[complaint.tracking_code]), {'satisfaction': 'not_satisfied'})
+        complaint.refresh_from_db()
+        dashboard = self.admin_client.get(reverse('admin_dashboard'))
+        ok = (intruder_blocked and complaint.satisfaction == 'satisfied' and complaint.satisfaction_comment
+              and dashboard.context['satisfaction']['rate'] == 100)
+        record('TC-36', 'SOP 5', 'Functional Suitability', 'Complainant rates the result as satisfied or not satisfied',
+               'One rating by the complainant only, summarized on the dashboard',
+               'Rating saved once, other users blocked, dashboard shows 100% satisfied' if ok else 'Feedback failed', ok)
+        self.assertTrue(ok)
+
+    def test_37_estimated_resolution_time(self):
+        complaint = self.file_complaint()
+        success = self.resident_client.get(reverse('complaint_success', args=[complaint.tracking_code])).content.decode()
+        page = self.resident_client.get(reverse('track_complaint'), {'code': complaint.tracking_code}).content.decode()
+        expected = timezone.localtime(complaint.expected_by).strftime('%B %d, %Y')
+        Complaint.objects.filter(id=complaint.id).update(created_at=timezone.now() - timedelta(days=5))
+        complaint.refresh_from_db()
+        ok = (complaint.estimated_days == 3 and '3 days' in success and expected in page and complaint.is_overdue)
+        record('TC-37', 'SOP 5', 'Usability', 'Complainant sees the estimated time to act on the complaint',
+               'Estimate from the category shown after filing and on tracking; late complaints flagged',
+               f'Within 3 days, by {expected} shown; flagged as past the usual time after 5 days' if ok else 'Estimate missing', ok)
+        self.assertTrue(ok)
+
+    def test_38_recommendations_from_top_complaints(self):
+        for _ in range(3):
+            self.file_complaint()
+        self.file_complaint(category=self.garbage.id, location='Market area',
+                            description='Garbage piling up near the public market stalls.')
+        response, ms = timed(lambda: self.admin_client.get(reverse('admin_dashboard')))
+        recs = response.context['recommendations']
+        ok = (response.status_code == 200 and recs and recs[0]['category'] == 'Noise' and recs[0]['count'] == 3
+              and recs[0]['share'] == 75 and 'tanod patrols' in recs[0]['action']
+              and 'Street 4 near the chapel' in recs[0]['top_location'] and 'Recommended Actions' in response.content.decode())
+        record('TC-38', 'SOP 3', 'Functional Suitability', 'Dashboard recommends actions for the most reported complaints',
+               'Top category ranked with its share, top location and suggested action',
+               f"Noise ranked first (3 of 4, 75%), top location and action shown" if ok else 'Recommendation wrong', ok, ms)
+        self.assertTrue(ok)
+
+    def test_39_report_signatories_and_master_list_extract(self):
+        from pypdf import PdfReader
+        import openpyxl
+        self.file_complaint()
+        pdf = self.admin_client.get(reverse('export_complaints_pdf'))
+        text = ' '.join(page.extract_text() for page in PdfReader(io.BytesIO(pdf.content)).pages)
+        xlsx = self.admin_client.get(reverse('export_residents_excel'))
+        sheet = openpyxl.load_workbook(io.BytesIO(xlsx.content)).active
+        emails = [row[7] for row in sheet.iter_rows(min_row=5, values_only=True)]
+        ok = ('Prepared by' in text and 'Noted by' in text and 'Punong Barangay' in text
+              and 'Recommended Actions' in text and self.resident.email in emails)
+        record('TC-39', 'SOP 3', 'Functional Suitability', 'Report has signatories; resident master list can be extracted',
+               'PDF shows Prepared by and Noted by lines; Excel extract lists the residents',
+               'Signature lines and recommendations in the PDF, residents listed in the Excel extract' if ok else 'Missing', ok)
+        self.assertTrue(ok)
+
+    def test_40_complaint_background_and_history(self):
+        future = (timezone.localdate() + timedelta(days=3)).isoformat()
+        before = Complaint.objects.count()
+        refused = self.resident_client.post(reverse('submit_complaint'), {
+            'category': self.noise.id, 'location': 'Street 4', 'incident_date': future,
+            'description': 'Loud karaoke from the bar on Street 4 every night until 3 in the morning.'})
+        future_refused = refused.status_code == 200 and Complaint.objects.count() == before
+        first = self.file_complaint(incident_date='2026-03-01', respondent_name='Owner of Kanto Bar')
+        second = self.file_complaint(category=self.garbage.id, description='Garbage dumped on the vacant lot again.')
+        detail = self.admin_client.get(reverse('complaint_detail', args=[second.id])).content.decode()
+        ok = (future_refused and str(first.incident_date) == '2026-03-01' and first.respondent_name == 'Owner of Kanto Bar'
+              and first.tracking_code in detail and "Complainant's History" in detail)
+        record('TC-40', 'SOP 1', 'Functional Suitability', 'Complaint records the incident date and person involved; staff see past complaints',
+               'Background saved (future dates refused); complainant history listed on the record',
+               'Incident date and respondent saved, future date refused, earlier complaint listed in history' if ok else 'Failed', ok)
         self.assertTrue(ok)

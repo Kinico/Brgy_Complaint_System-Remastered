@@ -36,7 +36,6 @@ INSTALLED_APPS = [
     'whitenoise.runserver_nostatic',
     'accounts',
     'complaints',
-    'ml_spam',
 ]
 
 MIDDLEWARE = [
@@ -64,6 +63,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'complaints.context_processors.barangay',
+                'complaints.context_processors.admin_nav',
             ],
         },
     },
@@ -131,6 +131,10 @@ DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', f'{BARANGAY_NAME} <{EMAIL_H
 
 # How often (in seconds) open tracking pages check for status changes
 STATUS_POLL_SECONDS = 15
+
+# Names printed on the signature lines of exported reports
+BARANGAY_CAPTAIN_NAME = os.getenv('BARANGAY_CAPTAIN_NAME', '')
+BARANGAY_SECRETARY_NAME = os.getenv('BARANGAY_SECRETARY_NAME', '')
 
 if not DEBUG:
     SECURE_SSL_REDIRECT = False

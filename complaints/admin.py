@@ -8,8 +8,8 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Complaint)
 class ComplaintAdmin(admin.ModelAdmin):
-    list_display = ['tracking_code', 'submitted_by', 'category', 'status', 'is_spam', 'created_at']
-    list_filter = ['status', 'category', 'is_spam', 'created_at']
+    list_display = ['tracking_code', 'submitted_by', 'category', 'status', 'source', 'created_at']
+    list_filter = ['status', 'category', 'source', 'created_at']
     search_fields = ['tracking_code', 'description', 'location']
     readonly_fields = ['tracking_code', 'created_at', 'updated_at']
 

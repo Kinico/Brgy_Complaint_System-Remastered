@@ -11,4 +11,8 @@ urlpatterns = [
     path('verify/<int:user_id>/', views.verify_email, name='verify_email'),
     path('resend-code/<int:user_id>/', views.resend_code, name='resend_code'),
     path('create-admin/', views.create_admin, name='create_admin'),
+    path('residents/', views.resident_master_list, name='resident_master_list'),
+    path('residents/export/', views.export_residents_excel, name='export_residents_excel'),
+    path('residents/<int:user_id>/review/', views.review_resident, name='review_resident'),
+    path('residents/<int:user_id>/valid-id/', views.view_valid_id, name='view_valid_id'),
 ]

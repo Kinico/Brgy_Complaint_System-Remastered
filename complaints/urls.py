@@ -10,19 +10,18 @@ urlpatterns = [
     path('my-complaints/status/', views.my_complaints_status_api, name='my_complaints_status_api'),
     path('track/<str:tracking_code>/status/', views.complaint_status_api, name='complaint_status_api'),
     path('guide/', views.user_guide, name='user_guide'),
-    path('api/check-spam/', views.check_spam_api, name='check_spam_api'),
     
     # Admin URLs
     path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),
     path('update-status/<int:complaint_id>/', views.update_status, name='update_status'),
     path('categories/', views.manage_categories, name='manage_categories'),
-    path('review-spam/', views.review_spam, name='review_spam'),
+    path('complaint/<int:complaint_id>/', views.complaint_detail, name='complaint_detail'),
+    path('walk-in/', views.walk_in_complaint, name='walk_in_complaint'),
+    path('track/<str:tracking_code>/feedback/', views.submit_feedback, name='submit_feedback'),
     
     # New URLs
     path('resolved-complaints/', views.resolved_complaints, name='resolved_complaints'),
     path('pending-complaints/', views.pending_complaints, name='pending_complaints'),
-    path('flag-spam/<int:complaint_id>/', views.flag_as_spam, name='flag_as_spam'),
-    path('mark-not-spam/<int:complaint_id>/', views.mark_as_not_spam, name='mark_not_spam'),
     
     # Export URLs
     path('export/excel/', views.export_complaints_excel, name='export_complaints_excel'),
@@ -31,12 +30,6 @@ urlpatterns = [
     
     # Captain URLs
     path('captain-dashboard/', views.captain_dashboard, name='captain_dashboard'),
-
-    #Anonymous complaint URLs
-    path('anonymous/', views.anonymous_complaint, name='anonymous_complaint'),
-    path('anonymous/success/<str:tracking_code>/', views.anonymous_success, name='anonymous_success'),
-    path('anonymous/track/', views.track_anonymous, name='track_anonymous'),
-    path('anonymous/track/<str:tracking_code>/', views.anonymous_track_result, name='anonymous_track_result'),
 
         # Complaint Status Pages
     path('resolved-complaints/', views.resolved_complaints, name='resolved_complaints'),

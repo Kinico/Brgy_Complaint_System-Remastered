@@ -1,6 +1,8 @@
-{% extends 'base.html' %}
+{% extends 'admin_base.html' %}
+{% block crumb %}Settings{% endblock %}
+{% block page_title %}Create Staff Account{% endblock %}
 
-{% block title %}Create Admin Account - Barangay System{% endblock %}
+{% block title %}Create Admin Account{% endblock %}
 
 {% block content %}
 <div class="min-h-screen flex items-center justify-center py-12 px-4">
@@ -71,7 +73,7 @@
                     <li>Manage all complaints</li>
                     <li>Update complaint statuses</li>
                     <li>Manage complaint categories</li>
-                    <li>Review spam complaints</li>
+                    <li>Verify residents in the master list</li>
                     <li>Cannot create other admin accounts</li>
                 </ul>
             </div>

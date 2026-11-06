@@ -1,0 +1,67 @@
+{% extends 'admin_base.html' %}
+{% block crumb %}Residents{% endblock %}
+{% block page_title %}Resident Master List{% endblock %}
+
+{% block title %}Resident Master List{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-10 max-w-7xl">
+    <div class="flex flex-wrap justify-between items-center gap-3 mb-6">
+        <div>
+            <h1 class="text-3xl font-display font-bold text-gray-800">Resident Master List</h1>
+            <p class="text-gray-500">Registered residents and their proof of residency. Only verified residents can file complaints with an account.</p>
+        </div>
+        <div class="flex gap-2 flex-wrap">
+            <a href="{% url 'admin_dashboard' %}" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"><i class="fas fa-arrow-left mr-2"></i>Dashboard</a>
+            <a href="{% url 'export_residents_excel' %}{% if status != 'all' %}?status={{ status }}{% endif %}" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"><i class="fas fa-file-excel mr-2"></i>Extract to Excel</a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <a href="?status=all" class="bg-white rounded-xl shadow p-4 {% if status == 'all' %}ring-2 ring-orange-500{% endif %}"><p class="text-sm text-gray-500">All residents</p><p class="text-2xl font-bold">{{ counts.all }}</p></a>
+        <a href="?status=pending" class="bg-white rounded-xl shadow p-4 {% if status == 'pending' %}ring-2 ring-orange-500{% endif %}"><p class="text-sm text-gray-500">Waiting for verification</p><p class="text-2xl font-bold text-yellow-600">{{ counts.pending }}</p></a>
+        <a href="?status=approved" class="bg-white rounded-xl shadow p-4 {% if status == 'approved' %}ring-2 ring-orange-500{% endif %}"><p class="text-sm text-gray-500">Verified</p><p class="text-2xl font-bold text-green-600">{{ counts.approved }}</p></a>
+        <a href="?status=rejected" class="bg-white rounded-xl shadow p-4 {% if status == 'rejected' %}ring-2 ring-orange-500{% endif %}"><p class="text-sm text-gray-500">Not verified</p><p class="text-2xl font-bold text-red-600">{{ counts.rejected }}</p></a>
+    </div>
+
+    <form method="GET" class="bg-white rounded-xl shadow p-4 mb-6 flex flex-col sm:flex-row gap-3">
+        <input type="hidden" name="status" value="{{ status }}">
+        <input type="text" name="search" value="{{ search }}" placeholder="Search by name, email, or address" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500">
+        <button class="px-5 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"><i class="fas fa-search mr-2"></i>Search</button>
+    </form>
+
+    <div class="bg-white rounded-xl shadow overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-xs uppercase text-gray-500">
+                <tr><th class="px-4 py-3 text-left">Resident</th><th class="px-4 py-3 text-left">Birthday</th><th class="px-4 py-3 text-left">Address</th><th class="px-4 py-3 text-left">Valid ID</th><th class="px-4 py-3 text-left">Status</th><th class="px-4 py-3 text-left">Action</th></tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for r in residents %}
+                <tr class="align-top">
+                    <td class="px-4 py-3"><p class="font-medium text-gray-800">{{ r.last_name }}, {{ r.first_name }}</p><p class="text-xs text-gray-500">{{ r.email }}</p>{% if r.contact_number %}<p class="text-xs text-gray-500">{{ r.contact_number }}</p>{% endif %}
+                        {% if not r.is_verified %}<p class="text-xs text-gray-400">Email not yet confirmed</p>{% endif %}</td>
+                    <td class="px-4 py-3">{% if r.birth_date %}{{ r.birth_date|date:"M d, Y" }}<p class="text-xs text-gray-500">{{ r.age }} years old</p>{% else %}<span class="text-gray-400">Not given</span>{% endif %}</td>
+                    <td class="px-4 py-3 max-w-xs">{{ r.address|default:"Not given" }}</td>
+                    <td class="px-4 py-3">{% if r.valid_id %}<a href="{% url 'view_valid_id' r.id %}" target="_blank" class="text-orange-600 hover:underline"><i class="fas fa-id-card mr-1"></i>{{ r.get_valid_id_type_display|default:"View ID" }}</a>{% else %}<span class="text-gray-400">No ID uploaded</span>{% endif %}</td>
+                    <td class="px-4 py-3"><span class="px-2 py-1 rounded-full text-xs font-semibold {% if r.residency_status == 'approved' %}bg-green-100 text-green-700{% elif r.residency_status == 'rejected' %}bg-red-100 text-red-700{% else %}bg-yellow-100 text-yellow-700{% endif %}">{{ r.get_residency_status_display }}</span>
+                        {% if r.residency_reviewed_by %}<p class="text-xs text-gray-400 mt-1">By {{ r.residency_reviewed_by.first_name }}, {{ r.residency_reviewed_at|date:"M d, Y" }}</p>{% endif %}
+                        {% if r.residency_note %}<p class="text-xs text-gray-500 mt-1">{{ r.residency_note }}</p>{% endif %}</td>
+                    <td class="px-4 py-3">
+                        <form method="POST" action="{% url 'review_resident' r.id %}" class="flex flex-col gap-2 min-w-[220px]">
+                            {% csrf_token %}
+                            <input type="text" name="note" placeholder="Note (required when rejecting)" class="px-2 py-1 border border-gray-300 rounded text-xs">
+                            <div class="flex gap-2">
+                                <button name="decision" value="approved" class="flex-1 px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"><i class="fas fa-check mr-1"></i>Verify</button>
+                                <button name="decision" value="rejected" class="flex-1 px-2 py-1 bg-red-50 text-red-600 rounded text-xs hover:bg-red-100"><i class="fas fa-times mr-1"></i>Reject</button>
+                            </div>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="px-4 py-10 text-center text-gray-500">No residents found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,6 +1,8 @@
-{% extends 'base.html' %}
+{% extends 'admin_base.html' %}
+{% block crumb %}Overview{% endblock %}
+{% block page_title %}Captain Overview{% endblock %}
 
-{% block title %}Captain Dashboard - Barangay System{% endblock %}
+{% block title %}Captain Dashboard{% endblock %}
 
 {% block content %}
 <div class="bg-gray-100 min-h-screen py-8">
@@ -17,6 +19,9 @@
                 </a>
                 <a href="{% url 'manage_users' %}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
                     <i class="fas fa-users mr-2"></i>Manage Users
+                </a>
+                <a href="{% url 'resident_master_list' %}" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+                    <i class="fas fa-address-book mr-2"></i>Resident Master List
                 </a>
                 <a href="{% url 'audit_log' %}" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700">
                     <i class="fas fa-history mr-2"></i>Audit Log

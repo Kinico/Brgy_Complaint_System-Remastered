@@ -1,0 +1,38 @@
+{% extends 'admin_base.html' %}
+{% block crumb %}Complaints{% endblock %}
+{% block page_title %}Walk-in Complaint{% endblock %}
+
+{% block title %}Encode Walk-in Complaint{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-12 max-w-3xl">
+    <div class="bg-white rounded-2xl shadow-xl p-8">
+        <a href="{% url 'admin_dashboard' %}" class="text-gray-500 hover:text-gray-700 text-sm"><i class="fas fa-arrow-left mr-2"></i>Back to Dashboard</a>
+        <h1 class="text-3xl font-display font-bold text-gray-800 mt-3 mb-2">Encode a Walk-in Complaint</h1>
+        <p class="text-gray-500 mb-6">For complainants who come to the barangay hall, for example during an emergency or when they have no internet connection. The system gives a tracking code that you can write down for them; they can use it to follow the complaint without an account.</p>
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="mb-4">
+                    <label class="block text-gray-700 font-medium mb-2">{{ form.complainant_name.label }}</label>
+                    {{ form.complainant_name }}
+                    {% if form.complainant_name.errors %}<p class="text-sm text-red-600 mt-1">{{ form.complainant_name.errors.0 }}</p>{% endif %}
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 font-medium mb-2">{{ form.complainant_contact.label }}</label>
+                    {{ form.complainant_contact }}
+                </div>
+            </div>
+            <div class="mb-4">
+                <label class="block text-gray-700 font-medium mb-2">{{ form.resident_email.label }}</label>
+                {{ form.resident_email }}
+                <p class="text-xs text-gray-400 mt-1">{{ form.resident_email.help_text }}</p>
+                {% if form.resident_email.errors %}<p class="text-sm text-red-600 mt-1">{{ form.resident_email.errors.0 }}</p>{% endif %}
+            </div>
+            <hr class="my-6">
+            {% include 'partials/complaint_fields.html' %}
+            <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"><i class="fas fa-save mr-2"></i>Save Walk-in Complaint</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

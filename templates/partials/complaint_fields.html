@@ -1,0 +1,12 @@
+{# Shared complaint form fields: category, background of the complaint, and evidence. #}
+{% for field in form %}
+    {% if field.name == 'resident_email' or field.name == 'complainant_name' or field.name == 'complainant_contact' %}
+    {% else %}
+    <div class="mb-4">
+        <label for="{{ field.id_for_label }}" class="block text-gray-700 font-medium mb-2">{{ field.label }}</label>
+        {{ field }}
+        {% if field.name == 'attachment' %}<p class="text-xs text-gray-400 mt-1">Video: mp4, webm, mov, 3gp. Audio: mp3, m4a, wav, ogg, aac, amr.</p>{% endif %}
+        {% if field.errors %}<p class="text-sm text-red-600 mt-1"><i class="fas fa-exclamation-circle mr-1"></i>{{ field.errors.0 }}</p>{% endif %}
+    </div>
+    {% endif %}
+{% endfor %}

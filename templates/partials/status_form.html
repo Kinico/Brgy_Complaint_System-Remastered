@@ -1,0 +1,28 @@
+{# Status update form used on the dashboard tables. A reason is required when rejecting. #}
+<form method="POST" action="{% url 'update_status' complaint.id %}" class="flex flex-col gap-2 status-form">
+    {% csrf_token %}
+    <div class="flex gap-1">
+        <select name="status" class="text-xs border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                onchange="var f=this.form; f.querySelector('.reason-field').classList.toggle('hidden', this.value!=='rejected'); f.querySelector('.feedback-field').classList.toggle('hidden', !(this.value==='resolved'||this.value==='rejected')); f.querySelector('select[name=rejection_reason]').required = (this.value==='rejected');">
+            <option value="pending" {% if complaint.status == 'pending' %}selected{% endif %}>Pending</option>
+            <option value="under_review" {% if complaint.status == 'under_review' %}selected{% endif %}>Under Review</option>
+            <option value="in_progress" {% if complaint.status == 'in_progress' %}selected{% endif %}>In Progress</option>
+            <option value="resolved" {% if complaint.status == 'resolved' %}selected{% endif %}>Resolved</option>
+            <option value="rejected" {% if complaint.status == 'rejected' %}selected{% endif %}>Rejected</option>
+        </select>
+        <button type="submit" class="bg-orange-500 hover:bg-orange-600 text-white px-2 py-1.5 rounded-lg text-xs transition"><i class="fas fa-save text-xs"></i> Update</button>
+    </div>
+    <div class="reason-field hidden">
+        <select name="rejection_reason" class="w-full text-xs border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-orange-500">
+            <option value="">Reason for rejection...</option>
+            <option value="outside_jurisdiction">Outside Barangay 10 jurisdiction</option>
+            <option value="insufficient_details">Insufficient details or evidence</option>
+            <option value="duplicate">Duplicate of an existing complaint</option>
+            <option value="not_barangay_matter">Not a barangay matter, referred to the proper office</option>
+            <option value="false_report">False or prank report</option>
+            <option value="withdrawn">Withdrawn by the complainant</option>
+            <option value="other">Other reason</option>
+        </select>
+    </div>
+    <div class="feedback-field hidden"><textarea name="feedback" rows="2" class="w-full text-xs border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-orange-500" placeholder="Resolution notes or details of the rejection..."></textarea></div>
+</form>

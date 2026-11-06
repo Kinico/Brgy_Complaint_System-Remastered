@@ -6,6 +6,8 @@ from django.core.mail import send_mail
 from django.utils import timezone
 from django.conf import settings
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.http import FileResponse, Http404, HttpResponse
+from django.db.models import Q, Count
 from datetime import timedelta
 from .models import User, AuditLog
 from .forms import RegistrationForm, VerificationCodeForm
@@ -96,12 +98,13 @@ Best regards,
 
 def register(request):
     if request.method == 'POST':
-        form = RegistrationForm(request.POST)
+        form = RegistrationForm(request.POST, request.FILES)
         if form.is_valid():
             user = form.save()
             send_verification_code(user, request)
             messages.success(request, 
-                f'Registration successful! We sent a 6-digit verification code to {user.email}')
+                f'Registration successful! We sent a 6-digit verification code to {user.email}. '
+                'Barangay staff will also check your valid ID before you can file complaints.')
             return redirect('verify_email', user_id=user.id)
     else:
         form = RegistrationForm()
@@ -305,3 +308,122 @@ def create_admin(request):
         return redirect('manage_users')
     
     return render(request, 'accounts/create_admin.html')
+
+
+def _is_staff_user(user):
+    return user.is_authenticated and user.is_admin()
+
+
+@login_required
+@user_passes_test(_is_staff_user)
+def resident_master_list(request):
+    """Master list of registered residents, with ID verification (proof of residency)."""
+    residents = User.objects.filter(role='resident').order_by('last_name', 'first_name')
+    status = request.GET.get('status', 'all')
+    if status in dict(User.RESIDENCY_CHOICES):
+        residents = residents.filter(residency_status=status)
+    search = request.GET.get('search', '').strip()
+    if search:
+        residents = residents.filter(Q(first_name__icontains=search) | Q(last_name__icontains=search) |
+                                     Q(email__icontains=search) | Q(address__icontains=search))
+    all_residents = User.objects.filter(role='resident')
+    context = {
+        'residents': residents,
+        'status': status,
+        'search': search,
+        'counts': {
+            'all': all_residents.count(),
+            'pending': all_residents.filter(residency_status='pending').count(),
+            'approved': all_residents.filter(residency_status='approved').count(),
+            'rejected': all_residents.filter(residency_status='rejected').count(),
+        },
+        'id_types': dict(User.ID_TYPE_CHOICES),
+    }
+    return render(request, 'accounts/resident_master_list.html', context)
+
+
+@login_required
+@user_passes_test(_is_staff_user)
+def review_resident(request, user_id):
+    resident = get_object_or_404(User, id=user_id, role='resident')
+    if request.method == 'POST':
+        decision = request.POST.get('decision')
+        if decision not in ('approved', 'rejected'):
+            messages.error(request, 'Please choose to verify or reject the resident.')
+            return redirect('resident_master_list')
+        note = request.POST.get('note', '').strip()
+        if decision == 'rejected' and not note:
+            messages.error(request, 'Please give the reason the ID was not accepted, so the resident knows what to do.')
+            return redirect('resident_master_list')
+        resident.residency_status = decision
+        resident.residency_note = note
+        resident.residency_reviewed_by = request.user
+        resident.residency_reviewed_at = timezone.now()
+        resident.save()
+        log_audit(request.user, 'review_resident', f'{resident.email} marked {decision}', request)
+        from complaints.notifications import notify_residency_reviewed
+        notify_residency_reviewed(resident, request)
+        label = 'verified' if decision == 'approved' else 'not verified'
+        messages.success(request, f'{resident.first_name} {resident.last_name} is now {label}.')
+    return redirect(request.META.get('HTTP_REFERER') or 'resident_master_list')
+
+
+@login_required
+@user_passes_test(_is_staff_user)
+def view_valid_id(request, user_id):
+    """IDs are personal data, so they are only shown to barangay staff through this page."""
+    resident = get_object_or_404(User, id=user_id)
+    if not resident.valid_id:
+        raise Http404('No ID uploaded')
+    try:
+        return FileResponse(resident.valid_id.open('rb'))
+    except (FileNotFoundError, OSError):
+        raise Http404('ID file is missing')
+
+
+@login_required
+@user_passes_test(_is_staff_user)
+def export_residents_excel(request):
+    """Extract of the resident master list."""
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from complaints.models import Complaint
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Resident Master List'
+    ws.append([f'{settings.BARANGAY_NAME} Resident Master List'])
+    ws.append([f'Extracted {timezone.localtime():%B %d, %Y %I:%M %p} by {request.user.first_name} {request.user.last_name}'])
+    ws.append([])
+    headers = ['No.', 'Last Name', 'First Name', 'Birthday', 'Age', 'Address', 'Mobile Number', 'Email',
+               'Valid ID', 'Status', 'Verified By', 'Date Registered', 'Complaints Filed']
+    ws.append(headers)
+    for cell in ws[4]:
+        cell.font = Font(bold=True, color='FFFFFF')
+        cell.fill = PatternFill(start_color='F97316', end_color='F97316', fill_type='solid')
+        cell.alignment = Alignment(horizontal='center')
+    ws['A1'].font = Font(bold=True, size=14)
+    counts = dict(Complaint.objects.filter(source='online').values_list('submitted_by').annotate(n=Count('id')).values_list('submitted_by', 'n'))
+    residents = User.objects.filter(role='resident').order_by('last_name', 'first_name')
+    status = request.GET.get('status')
+    if status in dict(User.RESIDENCY_CHOICES):
+        residents = residents.filter(residency_status=status)
+    for number, r in enumerate(residents, 1):
+        ws.append([
+            number, r.last_name, r.first_name,
+            r.birth_date.strftime('%Y-%m-%d') if r.birth_date else '',
+            r.age if r.age is not None else '',
+            r.address, r.contact_number, r.email,
+            r.get_valid_id_type_display() if r.valid_id_type else '',
+            r.get_residency_status_display(),
+            f'{r.residency_reviewed_by.first_name} {r.residency_reviewed_by.last_name}' if r.residency_reviewed_by else '',
+            timezone.localtime(r.date_joined).strftime('%Y-%m-%d'),
+            counts.get(r.id, 0),
+        ])
+    widths = [6, 18, 18, 12, 6, 40, 15, 30, 28, 22, 22, 15, 10]
+    for index, width in enumerate(widths):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(index + 1)].width = width
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="resident_master_list_{timezone.now():%Y%m%d}.xlsx"'
+    wb.save(response)
+    return response

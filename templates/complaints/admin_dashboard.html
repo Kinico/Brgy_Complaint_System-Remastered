@@ -1,339 +1,265 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - Barangay System</title>
-    
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <style>
-        * { font-family: 'Inter', sans-serif; }
-        .stat-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
-        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); }
-        .status-pending { background: #fef3c7; color: #b45309; }
-        .status-under_review { background: #dbeafe; color: #1e40af; }
-        .status-in_progress { background: #e0e7ff; color: #3730a3; }
-        .status-resolved { background: #d1fae5; color: #065f46; }
-        .status-rejected { background: #fee2e2; color: #991b1b; }
-        
-        .dropdown-container { position: relative; }
-        .dropdown-menu {
-            position: absolute;
-            top: 100%;
-            right: 0;
-            margin-top: 0;
-            background: white;
-            border-radius: 0.5rem;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            min-width: 200px;
-            z-index: 50;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.2s ease, visibility 0.2s ease;
-        }
-        .dropdown-container:hover .dropdown-menu { opacity: 1; visibility: visible; }
-        .dropdown-container::after {
-            content: '';
-            position: absolute;
-            top: 100%;
-            right: 0;
-            width: 100%;
-            height: 5px;
-            background: transparent;
-        }
-    </style>
-    {% include 'partials/theme_head.html' %}
-</head>
-<body class="bg-gray-100">
+{% extends 'admin_base.html' %}
 
-    <!-- Navbar -->
-    <nav class="bg-white shadow-md sticky top-0 z-50">
-        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-            <a href="{% url 'home' %}" class="flex items-center gap-2">
-                <div class="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
-                    <i class="fas fa-landmark text-white text-lg"></i>
-                </div>
-                <span class="font-display font-bold text-xl text-gray-800">{{ BARANGAY_NAME }}</span>
-            </a>
-            
-            <div class="hidden md:flex items-center gap-6">
-                <a href="{% url 'home' %}" class="text-gray-600 hover:text-orange-500 transition">Home</a>
-                <a href="{% url 'submit_complaint' %}" class="text-gray-600 hover:text-orange-500 transition">File Complaint</a>
-                <a href="{% url 'track_complaint' %}" class="text-gray-600 hover:text-orange-500 transition">Track Complaint</a>
-                
-                {% if user.is_authenticated %}
-                    {% if user.is_admin %}
-                        <a href="{% url 'admin_dashboard' %}" class="text-blue-600 hover:text-blue-700 transition font-medium">
-                            <i class="fas fa-chart-line mr-1"></i>Admin Panel
-                        </a>
-                    {% endif %}
-                    
-                    <div class="dropdown-container">
-                        <button class="flex items-center gap-2 text-gray-600 hover:text-orange-500 py-2 px-1">
-                            <i class="fas fa-user-circle text-xl"></i>
-                            <span>{{ user.first_name }} {{ user.last_name }}</span>
-                            <i class="fas fa-chevron-down text-xs"></i>
-                        </button>
-                        <div class="dropdown-menu">
-                            <a href="{% url 'my_complaints' %}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-orange-500 transition">
-                                <i class="fas fa-list mr-2"></i>My Complaints
-                            </a>
-                            <hr class="my-1">
-                            <a href="{% url 'logout' %}" class="block px-4 py-2 text-red-600 hover:bg-gray-100 transition">
-                                <i class="fas fa-sign-out-alt mr-2"></i>Logout
-                            </a>
-                        </div>
-                    </div>
-                {% else %}
-                    <a href="{% url 'login' %}" class="px-4 py-2 border border-orange-500 text-orange-500 rounded-lg hover:bg-orange-50 transition">
-                        <i class="fas fa-user mr-2"></i>Resident Login
-                    </a>
-                    <a href="{% url 'admin_login' %}" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-                        <i class="fas fa-shield-alt mr-2"></i>Admin Login
-                    </a>
-                    <a href="{% url 'register' %}" class="px-4 py-2 border border-green-500 text-green-500 rounded-lg hover:bg-green-50 transition">
-                        <i class="fas fa-user-plus mr-2"></i>Register
-                    </a>
-                {% endif %}
-            </div>
-            
-            <button id="mobileMenuBtn" class="md:hidden text-gray-600">
-                <i class="fas fa-bars text-2xl"></i>
-            </button>
-        </div>
-        
-        <div id="mobileMenu" class="hidden md:hidden bg-white border-t">
-            <div class="flex flex-col p-4 space-y-3">
-                <a href="{% url 'home' %}" class="text-gray-600 hover:text-orange-500 py-2">Home</a>
-                <a href="{% url 'submit_complaint' %}" class="text-gray-600 hover:text-orange-500 py-2">File Complaint</a>
-                <a href="{% url 'track_complaint' %}" class="text-gray-600 hover:text-orange-500 py-2">Track Complaint</a>
-                {% if user.is_authenticated %}
-                    {% if user.is_admin %}
-                        <a href="{% url 'admin_dashboard' %}" class="text-blue-600 py-2">Admin Panel</a>
-                    {% endif %}
-                    <a href="{% url 'my_complaints' %}" class="text-gray-600 py-2">My Complaints</a>
-                    <a href="{% url 'logout' %}" class="text-red-600 py-2">Logout</a>
-                {% else %}
-                    <a href="{% url 'login' %}" class="text-orange-500 py-2">Resident Login</a>
-                    <a href="{% url 'admin_login' %}" class="text-blue-600 py-2">Admin Login</a>
-                    <a href="{% url 'register' %}" class="bg-green-500 text-white text-center py-2 rounded-lg">Register</a>
-                {% endif %}
-            </div>
-        </div>
-    </nav>
+{% block title %}Dashboard{% endblock %}
+{% block crumb %}Overview{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
 
-    {% if messages %}
-        <div class="container mx-auto px-4 mt-4">
-            {% for message in messages %}
-                <div class="p-4 rounded-lg {% if message.tags == 'error' %}bg-red-100 text-red-700{% elif message.tags == 'success' %}bg-green-100 text-green-700{% elif message.tags == 'warning' %}bg-yellow-100 text-yellow-700{% else %}bg-blue-100 text-blue-700{% endif %}">
-                    {{ message }}
-                </div>
-            {% endfor %}
+{% block content %}
+<div class="px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- Greeting and quick actions -->
+    <div class="flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <p class="text-sm text-gray-500">{{ now|date:"l, F j, Y" }}</p>
+            <h1 class="text-2xl sm:text-3xl font-display font-bold text-gray-800">
+                Good {% if now.hour < 12 %}morning{% elif now.hour < 18 %}afternoon{% else %}evening{% endif %}, {{ user.first_name }}
+            </h1>
+            <p class="text-gray-500">Here is what is happening with complaints in {{ BARANGAY_NAME }}.</p>
         </div>
+        <div class="flex flex-wrap gap-2">
+            <a href="{% url 'export_complaints_pdf' %}" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-700 font-medium hover:bg-gray-50 transition"><i class="fas fa-file-pdf text-red-500"></i>Signed Report</a>
+            <a href="{% url 'walk_in_complaint' %}" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-orange-500 text-white font-semibold hover:bg-orange-600 shadow-lg shadow-orange-500/25 transition"><i class="fas fa-plus"></i>Walk-in Complaint</a>
+        </div>
+    </div>
+
+    <!-- Key numbers -->
+    <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div class="stat-card bg-white rounded-2xl border border-gray-200 p-4">
+            <div class="flex items-center justify-between mb-3"><span class="text-sm text-gray-500">Total</span><span class="w-9 h-9 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center"><i class="fas fa-layer-group"></i></span></div>
+            <p class="text-3xl font-bold text-gray-800">{{ total }}</p><p class="text-xs text-gray-400 mt-1">all complaints</p>
+        </div>
+        <div class="stat-card bg-white rounded-2xl border border-gray-200 p-4">
+            <div class="flex items-center justify-between mb-3"><span class="text-sm text-gray-500">Pending</span><span class="w-9 h-9 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center"><i class="fas fa-clock"></i></span></div>
+            <p class="text-3xl font-bold text-gray-800">{{ stats.pending }}</p><p class="text-xs text-gray-400 mt-1">waiting for review</p>
+        </div>
+        <div class="stat-card bg-white rounded-2xl border border-gray-200 p-4">
+            <div class="flex items-center justify-between mb-3"><span class="text-sm text-gray-500">Under Review</span><span class="w-9 h-9 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center"><i class="fas fa-magnifying-glass"></i></span></div>
+            <p class="text-3xl font-bold text-gray-800">{{ stats.under_review }}</p><p class="text-xs text-gray-400 mt-1">being checked</p>
+        </div>
+        <div class="stat-card bg-white rounded-2xl border border-gray-200 p-4">
+            <div class="flex items-center justify-between mb-3"><span class="text-sm text-gray-500">In Progress</span><span class="w-9 h-9 rounded-xl bg-violet-100 text-violet-600 flex items-center justify-center"><i class="fas fa-person-digging"></i></span></div>
+            <p class="text-3xl font-bold text-gray-800">{{ stats.in_progress }}</p><p class="text-xs text-gray-400 mt-1">being acted on</p>
+        </div>
+        <div class="stat-card bg-white rounded-2xl border border-gray-200 p-4">
+            <div class="flex items-center justify-between mb-3"><span class="text-sm text-gray-500">Resolved</span><span class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center"><i class="fas fa-circle-check"></i></span></div>
+            <p class="text-3xl font-bold text-gray-800">{{ stats.resolved }}</p><p class="text-xs text-gray-400 mt-1">{% if avg_response_days is not None %}avg {{ avg_response_days }} days to close{% else %}closed complaints{% endif %}</p>
+        </div>
+        <div class="stat-card bg-white rounded-2xl border border-gray-200 p-4">
+            <div class="flex items-center justify-between mb-3"><span class="text-sm text-gray-500">Rejected</span><span class="w-9 h-9 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center"><i class="fas fa-circle-xmark"></i></span></div>
+            <p class="text-3xl font-bold text-gray-800">{{ stats.rejected }}</p><p class="text-xs text-gray-400 mt-1">with a recorded reason</p>
+        </div>
+    </div>
+
+    <!-- Needs attention -->
+    {% if overdue_count or residents_waiting %}
+    <div class="grid sm:grid-cols-2 gap-4">
+        <a href="{% url 'pending_complaints' %}" class="card-hover flex items-center gap-4 p-4 rounded-2xl border {% if overdue_count %}border-red-200 bg-red-50{% else %}border-gray-200 bg-white{% endif %}">
+            <span class="w-11 h-11 rounded-xl bg-red-500 text-white flex items-center justify-center shrink-0"><i class="fas fa-hourglass-end"></i></span>
+            <div><p class="font-semibold text-gray-800">{{ overdue_count }} past the usual time</p><p class="text-xs text-gray-500">Active complaints older than their category's estimate</p></div>
+            <i class="fas fa-chevron-right ml-auto text-gray-400"></i>
+        </a>
+        <a href="{% url 'resident_master_list' %}?status=pending" class="card-hover flex items-center gap-4 p-4 rounded-2xl border {% if residents_waiting %}border-emerald-200 bg-emerald-50{% else %}border-gray-200 bg-white{% endif %}">
+            <span class="w-11 h-11 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0"><i class="fas fa-id-card"></i></span>
+            <div><p class="font-semibold text-gray-800">{{ residents_waiting }} resident{{ residents_waiting|pluralize }} to verify</p><p class="text-xs text-gray-500">Check their valid ID in the master list</p></div>
+            <i class="fas fa-chevron-right ml-auto text-gray-400"></i>
+        </a>
+    </div>
     {% endif %}
 
-    <main>
-        <div class="bg-gray-100 min-h-screen py-8">
-            <div class="container mx-auto px-4">
-                <!-- Header with Back to Captain Dashboard button for Captains -->
-                <div class="flex justify-between items-center mb-8 flex-wrap gap-3">
-                    <div>
-                        <h1 class="text-3xl font-display font-bold text-gray-800">Admin Dashboard</h1>
-                        <p class="text-gray-500">Manage complaints and view analytics</p>
-                    </div>
-                    <div class="flex gap-3 flex-wrap">
-                        {% if user.is_captain %}
-                        <a href="{% url 'captain_dashboard' %}" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition">
-                            <i class="fas fa-arrow-left mr-2"></i>Back to Captain Dashboard
-                        </a>
-                        {% endif %}
-                        <a href="{% url 'manage_categories' %}" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition">
-                            <i class="fas fa-tags mr-2"></i>Categories
-                        </a>
-                        <a href="{% url 'review_spam' %}" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition">
-                            <i class="fas fa-shield-alt mr-2"></i>Review Spam
-                        </a>
-                        {% if user.is_captain %}
-                        <a href="{% url 'manage_users' %}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
-                            <i class="fas fa-users mr-2"></i>Manage Users
-                        </a>
-                        {% endif %}
-                    </div>
-                </div>
-                
-                <!-- Stats Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-8">
-                    <div class="bg-white rounded-xl shadow-md p-5 stat-card">
-                        <div class="flex items-center justify-between">
-                            <div><p class="text-gray-500 text-sm">Total</p><p class="text-2xl font-bold">{{ total }}</p></div>
-                            <i class="fas fa-file-alt text-3xl text-gray-400"></i>
-                        </div>
-                    </div>
-                    <div class="bg-white rounded-xl shadow-md p-5 stat-card">
-                        <div class="flex items-center justify-between">
-                            <div><p class="text-gray-500 text-sm">Pending</p><p class="text-2xl font-bold text-yellow-600">{{ stats.pending }}</p></div>
-                            <i class="fas fa-clock text-3xl text-yellow-400"></i>
-                        </div>
-                    </div>
-                    <div class="bg-white rounded-xl shadow-md p-5 stat-card">
-                        <div class="flex items-center justify-between">
-                            <div><p class="text-gray-500 text-sm">Under Review</p><p class="text-2xl font-bold text-blue-600">{{ stats.under_review }}</p></div>
-                            <i class="fas fa-search text-3xl text-blue-400"></i>
-                        </div>
-                    </div>
-                    <div class="bg-white rounded-xl shadow-md p-5 stat-card">
-                        <div class="flex items-center justify-between">
-                            <div><p class="text-gray-500 text-sm">In Progress</p><p class="text-2xl font-bold text-purple-600">{{ stats.in_progress }}</p></div>
-                            <i class="fas fa-spinner text-3xl text-purple-400"></i>
-                        </div>
-                    </div>
-                    <div class="bg-white rounded-xl shadow-md p-5 stat-card">
-                        <div class="flex items-center justify-between">
-                            <div><p class="text-gray-500 text-sm">Resolved</p><p class="text-2xl font-bold text-green-600">{{ stats.resolved }}</p></div>
-                            <i class="fas fa-check-circle text-3xl text-green-400"></i>
-                        </div>
-                    </div>
-                    <div class="bg-white rounded-xl shadow-md p-5 stat-card">
-                        <div class="flex items-center justify-between">
-                            <div><p class="text-gray-500 text-sm">Spam</p><p class="text-2xl font-bold text-red-600">{{ stats.spam }}</p></div>
-                            <i class="fas fa-shield-alt text-3xl text-red-400"></i>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Charts -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                    <div class="bg-white rounded-xl shadow-md p-6"><h3 class="text-lg font-semibold mb-4">Complaints by Category</h3><canvas id="categoryChart" height="250"></canvas></div>
-                    <div class="bg-white rounded-xl shadow-md p-6"><h3 class="text-lg font-semibold mb-4">Monthly Trends</h3><canvas id="monthlyChart" height="250"></canvas></div>
-                </div>
-                
-                <!-- Search and Filter -->
-                <div class="bg-white rounded-xl shadow-md p-4 mb-6">
-                    <form method="GET" class="flex flex-col md:flex-row gap-4">
-                        <input type="text" name="search" value="{{ search }}" placeholder="Search by code, name, location..." class="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500">
-                        <select name="date_range" class="px-4 py-2 border rounded-lg">
-                            <option value="all" {% if date_range == 'all' %}selected{% endif %}>All Time</option>
-                            <option value="today" {% if date_range == 'today' %}selected{% endif %}>Today</option>
-                            <option value="week" {% if date_range == 'week' %}selected{% endif %}>This Week</option>
-                            <option value="month" {% if date_range == 'month' %}selected{% endif %}>This Month</option>
-                        </select>
-                        <button type="submit" class="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600"><i class="fas fa-search mr-2"></i>Filter</button>
-                    </form>
-                </div>
-                
-                <!-- Active Complaints Table -->
-                <div class="bg-white rounded-xl shadow-md overflow-hidden">
-                    <div class="px-6 py-4 bg-gray-50 border-b flex justify-between items-center flex-wrap gap-3">
-                        <div><h3 class="text-lg font-semibold text-gray-800">Active Complaints</h3><p class="text-sm text-gray-500 mt-1">Complaints pending resolution</p></div>
-                        <div class="flex gap-3">
-                            <a href="{% url 'resolved_complaints' %}" class="inline-flex items-center gap-1 px-3 py-1.5 bg-green-50 text-green-600 rounded-lg text-sm hover:bg-green-100 transition"><i class="fas fa-check-circle text-xs"></i><span>View Resolved</span></a>
-                            <a href="{% url 'rejected_complaints' %}" class="inline-flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-sm hover:bg-red-100 transition"><i class="fas fa-times-circle text-xs"></i><span>View Rejected</span></a>
-                        </div>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full">
-                            <thead class="bg-gray-50 border-b border-gray-200">
-                                <tr><th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Code</th><th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Complainant</th><th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Category</th><th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Description</th><th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th><th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th><th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th></tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100">
-                                {% for complaint in active_complaints %}
-                                <tr class="hover:bg-gray-50 transition duration-150">
-                                    <td class="px-4 py-3"><span class="font-mono text-sm font-semibold text-gray-800">{{ complaint.tracking_code }}</span>{% if complaint.is_spam %}<span class="ml-2 inline-flex items-center gap-1 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full"><i class="fas fa-shield-alt text-xs"></i><span>Spam</span></span>{% endif %}</td>
-                                    <td class="px-4 py-3">{{ complaint.submitted_by.first_name }} {{ complaint.submitted_by.last_name }}</td>
-                                    <td class="px-4 py-3">{{ complaint.category.name|default:"Uncategorized" }}</td>
-                                    <td class="px-4 py-3 max-w-xs"><p class="text-sm text-gray-600 truncate" title="{{ complaint.description }}">{{ complaint.description|truncatechars:50 }}</p></td>
-                                    <td class="px-4 py-3"><span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium status-{{ complaint.status }}">{{ complaint.get_status_display }}</span></td>
-                                    <td class="px-4 py-3 text-sm">{{ complaint.created_at|date:"M d, Y" }}</td>
-                                    <td class="px-4 py-3">
-                                        <form method="POST" action="{% url 'update_status' complaint.id %}" class="flex flex-col gap-2">
-                                            {% csrf_token %}
-                                            <div class="flex gap-1">
-                                                <select name="status" class="text-xs border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-500">
-                                                    <option value="pending" {% if complaint.status == 'pending' %}selected{% endif %}>Pending</option>
-                                                    <option value="under_review" {% if complaint.status == 'under_review' %}selected{% endif %}>Under Review</option>
-                                                    <option value="in_progress" {% if complaint.status == 'in_progress' %}selected{% endif %}>In Progress</option>
-                                                    <option value="resolved" {% if complaint.status == 'resolved' %}selected{% endif %}>Resolved</option>
-                                                    <option value="rejected" {% if complaint.status == 'rejected' %}selected{% endif %}>Rejected</option>
-                                                </select>
-                                                <button type="submit" class="bg-orange-500 hover:bg-orange-600 text-white px-2 py-1.5 rounded-lg text-xs transition"><i class="fas fa-save text-xs"></i> Update</button>
-                                            </div>
-                                            <div class="feedback-field hidden mt-1"><textarea name="feedback" rows="2" class="w-full text-xs border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-orange-500" placeholder="Reason for rejection or resolution notes..."></textarea></div>
-                                        </form>
-                                        <div class="mt-2 flex gap-1">
-                                            {% if not complaint.is_spam %}
-                                            <form method="POST" action="{% url 'flag_as_spam' complaint.id %}" class="inline">
-                                                {% csrf_token %}
-                                                <button type="submit" class="bg-red-50 hover:bg-red-100 text-red-600 px-2 py-1 rounded text-xs transition" onclick="return confirm('Flag this complaint as spam?')"><i class="fas fa-flag"></i> Spam</button>
-                                            </form>
-                                            {% endif %}
-                                            <a href="{% url 'track_complaint' %}?code={{ complaint.tracking_code }}" class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2 py-1 rounded text-xs transition" target="_blank"><i class="fas fa-eye"></i> View</a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr><td colspan="7" class="px-4 py-12 text-center text-gray-500">No active complaints found.</td></tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% if active_total > 50 %}
-                    <div class="px-6 py-3 bg-gray-50 border-t text-sm text-gray-500 flex justify-between items-center flex-wrap gap-2">
-                        <span>Showing the 50 newest of {{ active_total }} active complaints.</span>
-                        <a href="{% url 'pending_complaints' %}" class="text-orange-600 font-medium hover:underline">View all active complaints</a>
-                    </div>
-                    {% endif %}
+    <!-- Charts -->
+    <div class="grid lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 bg-white rounded-2xl border border-gray-200 p-6">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div><h3 class="font-semibold text-gray-800">Complaints by Category</h3><p class="text-xs text-gray-500">Split by how far each complaint has gone</p></div>
+                <div class="flex flex-wrap gap-3 text-xs text-gray-500">
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm" style="background:#10b981"></span>Resolved</span>
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm" style="background:#f97316"></span>Active</span>
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm" style="background:#94a3b8"></span>Rejected</span>
                 </div>
             </div>
+            <div class="relative h-72"><canvas id="categoryChart"></canvas></div>
         </div>
-    </main>
+        <div class="bg-white rounded-2xl border border-gray-200 p-6">
+            <h3 class="font-semibold text-gray-800">Status Breakdown</h3>
+            <p class="text-xs text-gray-500 mb-4">Where every complaint is right now</p>
+            <div class="relative h-52"><canvas id="statusChart"></canvas>
+                <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"><p class="text-3xl font-bold text-gray-800">{{ total }}</p><p class="text-xs text-gray-500">complaints</p></div>
+            </div>
+            <ul class="mt-4 grid grid-cols-2 gap-2 text-sm">
+                <li class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full" style="background:#f59e0b"></span><span class="text-gray-600">Pending</span><span class="ml-auto font-semibold text-gray-800">{{ stats.pending }}</span></li>
+                <li class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full" style="background:#0ea5e9"></span><span class="text-gray-600">Review</span><span class="ml-auto font-semibold text-gray-800">{{ stats.under_review }}</span></li>
+                <li class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full" style="background:#8b5cf6"></span><span class="text-gray-600">Progress</span><span class="ml-auto font-semibold text-gray-800">{{ stats.in_progress }}</span></li>
+                <li class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full" style="background:#10b981"></span><span class="text-gray-600">Resolved</span><span class="ml-auto font-semibold text-gray-800">{{ stats.resolved }}</span></li>
+                <li class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full" style="background:#94a3b8"></span><span class="text-gray-600">Rejected</span><span class="ml-auto font-semibold text-gray-800">{{ stats.rejected }}</span></li>
+            </ul>
+        </div>
+    </div>
 
-    <footer class="bg-gray-800 text-white mt-16">
-        <div class="container mx-auto px-4 py-8 text-center"><p>&copy; {% now 'Y' %} {{ BARANGAY_NAME }} Complaint Management System. All rights reserved.</p></div>
-    </footer>
+    <div class="grid lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 bg-white rounded-2xl border border-gray-200 p-6">
+            <h3 class="font-semibold text-gray-800">Complaints per Month</h3>
+            <p class="text-xs text-gray-500 mb-4">New complaints filed in the last six months</p>
+            <div class="relative h-64"><canvas id="monthlyChart"></canvas></div>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-200 p-6 flex flex-col">
+            <h3 class="font-semibold text-gray-800">Complainant Feedback</h3>
+            <p class="text-xs text-gray-500 mb-4">Ratings given after a complaint is closed</p>
+            {% if satisfaction.rated %}
+            <div class="flex items-end gap-2"><p class="text-5xl font-bold text-emerald-600">{{ satisfaction.rate }}%</p><p class="text-sm text-gray-500 mb-2">satisfied</p></div>
+            <div class="w-full h-3 bg-gray-100 rounded-full overflow-hidden mt-4 flex">
+                <div class="h-full bg-emerald-500" style="width: {{ satisfaction.rate }}%"></div><div class="h-full bg-rose-400 flex-1"></div>
+            </div>
+            <div class="flex justify-between text-xs text-gray-500 mt-2"><span><i class="fas fa-face-smile text-emerald-500 mr-1"></i>{{ satisfaction.satisfied }} satisfied</span><span><i class="fas fa-face-frown text-rose-400 mr-1"></i>{{ satisfaction.not_satisfied }} not satisfied</span></div>
+            {% else %}
+            <div class="flex-1 flex flex-col items-center justify-center text-center text-gray-500 py-6">
+                <i class="fas fa-comment-dots text-3xl text-gray-300 mb-2"></i>
+                <p class="text-sm">No ratings yet. Complainants are asked after their complaint is resolved or rejected.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
 
-    <script>
-        document.getElementById('mobileMenuBtn')?.addEventListener('click', function() { const menu = document.getElementById('mobileMenu'); menu.classList.toggle('hidden'); });
-        
-        const categoryData = {{ category_data|safe }};
-        if (categoryData && categoryData.length > 0) {
-            new Chart(document.getElementById('categoryChart'), {
+    <!-- Recommended actions -->
+    <div class="bg-white rounded-2xl border border-gray-200 p-6">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <div><h3 class="font-semibold text-gray-800"><i class="fas fa-lightbulb text-orange-500 mr-2"></i>Recommended Actions</h3>
+                <p class="text-xs text-gray-500">Based on the most reported complaints in the last 30 days</p></div>
+            <a href="{% url 'manage_categories' %}" class="text-sm text-orange-600 hover:underline">Edit actions in Categories</a>
+        </div>
+        <div class="grid md:grid-cols-3 gap-4">
+            {% for rec in recommendations %}
+            <div class="rounded-xl border border-gray-200 p-4 flex flex-col">
+                <div class="flex items-center gap-3 mb-3">
+                    <span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 font-bold flex items-center justify-center">{{ forloop.counter }}</span>
+                    <div class="min-w-0"><p class="font-semibold text-gray-800 truncate">{{ rec.category }}</p><p class="text-xs text-gray-500">{{ rec.count }} complaint{{ rec.count|pluralize }}, {{ rec.share }}% of all, {{ rec.trend }}</p></div>
+                </div>
+                <div class="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden mb-3"><div class="h-full bg-orange-500 rounded-full" style="width: {{ rec.share }}%"></div></div>
+                {% if rec.top_location %}<p class="text-xs text-gray-500 mb-2"><i class="fas fa-location-dot mr-1"></i>{{ rec.top_location }}</p>{% endif %}
+                <p class="text-sm text-gray-700">{{ rec.action }}</p>
+            </div>
+            {% empty %}
+            <p class="text-gray-500 text-sm md:col-span-3">No complaints in the last 30 days yet.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Active complaints -->
+    <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+        <div class="p-5 border-b border-gray-200 flex flex-col lg:flex-row lg:items-center gap-4">
+            <div class="flex-1"><h3 class="font-semibold text-gray-800">Active Complaints</h3><p class="text-xs text-gray-500">Complaints that are not yet resolved or rejected</p></div>
+            <form method="GET" class="flex flex-col sm:flex-row gap-2">
+                <div class="relative">
+                    <i class="fas fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                    <input type="text" name="search" value="{{ search }}" placeholder="Code, name, location" class="pl-9 pr-3 py-2 w-full sm:w-60 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+                </div>
+                <select name="date_range" class="px-3 py-2 border border-gray-300 rounded-xl text-sm">
+                    <option value="all" {% if date_range == 'all' %}selected{% endif %}>All time</option>
+                    <option value="today" {% if date_range == 'today' %}selected{% endif %}>Today</option>
+                    <option value="week" {% if date_range == 'week' %}selected{% endif %}>This week</option>
+                    <option value="month" {% if date_range == 'month' %}selected{% endif %}>This month</option>
+                </select>
+                <button type="submit" class="px-4 py-2 rounded-xl bg-slate-800 text-white text-sm hover:bg-slate-700">Filter</button>
+            </form>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-xs uppercase tracking-wider text-gray-500">
+                    <tr><th class="px-5 py-3 text-left font-semibold">Complaint</th><th class="px-5 py-3 text-left font-semibold">Complainant</th><th class="px-5 py-3 text-left font-semibold">Description</th><th class="px-5 py-3 text-left font-semibold">Status</th><th class="px-5 py-3 text-left font-semibold">Update</th></tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for complaint in active_complaints %}
+                    <tr class="align-top hover:bg-gray-50 transition">
+                        <td class="px-5 py-4">
+                            <a href="{% url 'complaint_detail' complaint.id %}" class="font-mono font-semibold text-orange-600 hover:underline">{{ complaint.tracking_code }}</a>
+                            <p class="text-xs text-gray-500 mt-0.5">{{ complaint.category.name|default:"Uncategorized" }}</p>
+                            <p class="text-xs text-gray-400">{{ complaint.created_at|date:"M d, Y" }}</p>
+                            {% if complaint.is_overdue %}<span class="inline-block mt-1 text-[11px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full">Past usual time</span>{% endif %}
+                        </td>
+                        <td class="px-5 py-4">
+                            <p class="text-gray-800">{{ complaint.complainant_display }}</p>
+                            {% if complaint.source == 'walk_in' %}<span class="text-[11px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Walk-in</span>{% endif %}
+                        </td>
+                        <td class="px-5 py-4 max-w-xs"><p class="text-gray-600 line-clamp-2" title="{{ complaint.description }}">{{ complaint.description|truncatechars:90 }}</p></td>
+                        <td class="px-5 py-4"><span class="inline-flex px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap status-{{ complaint.status }}">{{ complaint.get_status_display }}</span></td>
+                        <td class="px-5 py-4 min-w-[230px]">
+                            {% include 'partials/status_form.html' %}
+                            <div class="mt-2 flex gap-2">
+                                <a href="{% url 'complaint_detail' complaint.id %}" class="text-xs px-2.5 py-1 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200"><i class="fas fa-eye mr-1"></i>Open</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="px-5 py-14 text-center text-gray-500"><i class="fas fa-mug-hot text-3xl text-gray-300 mb-2 block"></i>No active complaints. Everything is handled.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if active_total > 50 %}
+        <div class="px-5 py-3 bg-gray-50 border-t border-gray-200 text-sm text-gray-500 flex justify-between items-center flex-wrap gap-2">
+            <span>Showing the 50 newest of {{ active_total }} active complaints.</span>
+            <a href="{% url 'pending_complaints' %}" class="text-orange-600 font-medium hover:underline">View all</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{{ stats|json_script:"stats-data" }}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    if (typeof Chart === 'undefined') return;
+    var categories = {{ category_data|safe }};
+    var months = {{ monthly_data|safe }};
+    var stats = JSON.parse(document.getElementById('stats-data').textContent);
+    var charts = [];
+
+    function palette() {
+        var dark = document.documentElement.classList.contains('dark');
+        return { text: dark ? '#cbd5e1' : '#334155', muted: dark ? '#94a3b8' : '#64748b',
+                 grid: dark ? 'rgba(148,163,184,0.12)' : 'rgba(15,23,42,0.06)', card: dark ? '#1e293b' : '#ffffff' };
+    }
+    function draw() {
+        charts.forEach(function (c) { c.destroy(); }); charts = [];
+        var c = palette();
+        var tip = { backgroundColor: '#0f172a', padding: 10, cornerRadius: 8 };
+
+        if (categories.length) {
+            charts.push(new Chart(document.getElementById('categoryChart'), {
                 type: 'bar',
-                data: { labels: categoryData.map(c => c.name), datasets: [{ label: 'Number of Complaints', data: categoryData.map(c => c.count), backgroundColor: '#f97316', borderRadius: 8 }] },
-                options: { responsive: true, maintainAspectRatio: true, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
-            });
+                data: { labels: categories.map(function (x) { return x.name; }), datasets: [
+                    { label: 'Resolved', data: categories.map(function (x) { return x.resolved; }), backgroundColor: '#10b981', borderRadius: 6, borderSkipped: false, maxBarThickness: 22 },
+                    { label: 'Active', data: categories.map(function (x) { return x.open; }), backgroundColor: '#f97316', borderRadius: 6, borderSkipped: false, maxBarThickness: 22 },
+                    { label: 'Rejected', data: categories.map(function (x) { return x.rejected; }), backgroundColor: '#94a3b8', borderRadius: 6, borderSkipped: false, maxBarThickness: 22 } ] },
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: Object.assign({ callbacks: { footer: function (i) { return 'Total: ' + categories[i[0].dataIndex].count; } } }, tip) },
+                    scales: { x: { stacked: true, beginAtZero: true, ticks: { precision: 0, color: c.muted }, grid: { color: c.grid }, border: { display: false } },
+                              y: { stacked: true, ticks: { color: c.text, font: { weight: '600' } }, grid: { display: false }, border: { display: false } } } }
+            }));
         }
-        
-        const monthlyData = {{ monthly_data|safe }};
-        if (monthlyData && monthlyData.length > 0) {
-            new Chart(document.getElementById('monthlyChart'), {
-                type: 'line',
-                data: { labels: monthlyData.map(m => m.month), datasets: [{ label: 'Complaints', data: monthlyData.map(m => m.count), borderColor: '#f97316', backgroundColor: 'rgba(249, 115, 22, 0.1)', tension: 0.3, fill: true }] },
-                options: { responsive: true, maintainAspectRatio: true, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
-            });
-        }
-        
-        document.querySelectorAll('select[name="status"]').forEach(select => {
-            select.addEventListener('change', function() {
-                const form = this.closest('form');
-                const feedbackDiv = form.querySelector('.feedback-field');
-                if (this.value === 'resolved' || this.value === 'rejected') {
-                    if (feedbackDiv) feedbackDiv.classList.remove('hidden');
-                } else {
-                    if (feedbackDiv) feedbackDiv.classList.add('hidden');
-                }
-            });
-        });
-    </script>
-</body>
-</html>
+
+        charts.push(new Chart(document.getElementById('statusChart'), {
+            type: 'doughnut',
+            data: { labels: ['Pending', 'Under Review', 'In Progress', 'Resolved', 'Rejected'],
+                    datasets: [{ data: [stats.pending, stats.under_review, stats.in_progress, stats.resolved, stats.rejected],
+                                 backgroundColor: ['#f59e0b', '#0ea5e9', '#8b5cf6', '#10b981', '#94a3b8'], borderColor: c.card, borderWidth: 3, hoverOffset: 6 }] },
+            options: { responsive: true, maintainAspectRatio: false, cutout: '72%', plugins: { legend: { display: false }, tooltip: tip } }
+        }));
+
+        var ctx = document.getElementById('monthlyChart').getContext('2d');
+        var fill = ctx.createLinearGradient(0, 0, 0, 260);
+        fill.addColorStop(0, 'rgba(249,115,22,0.9)'); fill.addColorStop(1, 'rgba(249,115,22,0.35)');
+        charts.push(new Chart(ctx, {
+            type: 'bar',
+            data: { labels: months.map(function (m) { return m.month; }),
+                    datasets: [{ label: 'Complaints', data: months.map(function (m) { return m.count; }), backgroundColor: fill, borderRadius: 8, maxBarThickness: 48 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: tip },
+                scales: { y: { beginAtZero: true, ticks: { precision: 0, color: c.muted }, grid: { color: c.grid }, border: { display: false } },
+                          x: { ticks: { color: c.text }, grid: { display: false }, border: { display: false } } } }
+        }));
+    }
+    draw();
+    new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+})();
+</script>
+{% endblock %}
